@@ -1,0 +1,1 @@
+This is more or less a direct translation of the modular partition part of the [twinwidth-2023](https://github.com/mogproject/twinwidth-2023) repository. The repository and its licensing information can be found a submodule located in `extern/miz23`.

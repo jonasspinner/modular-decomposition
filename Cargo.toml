@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "algorithms/miz23-md-cpp-sys",
+    "algorithms/miz23-md-cpp",
+    "algorithms/miz23-md-rs",
+    "playground",
+]
+resolver="2"

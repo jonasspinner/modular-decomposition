@@ -1,0 +1,24 @@
+digraph {
+    12 -> 1
+    12 -> 13
+    12 -> 5
+    12 -> 14
+    12 -> 15
+    13 -> 16
+    13 -> 4
+    14 -> 6
+    14 -> 7
+    15 -> 8
+    15 -> 9
+    15 -> 17
+    16 -> 2
+    16 -> 3
+    17 -> 10
+    17 -> 11
+    12 [label="Prime"]
+    13 [label="Series"]
+    14 [label="Parallel"]
+    15 [label="Series"]
+    16 [label="Parallel"]
+    17 [label="Parallel"]
+}

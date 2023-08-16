@@ -1,0 +1,15 @@
+digraph {
+  6 [label=Prime]
+  6 -> 0
+  6 -> 1
+  6 -> 2
+  6 -> 5
+  5 [label=Parallel]
+  5 -> 3
+  5 -> 4
+  4 [label=a]
+  3 [label=e]
+  2 [label=b]
+  1 [label=c]
+  0 [label=d]
+}

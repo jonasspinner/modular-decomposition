@@ -1,0 +1,9 @@
+[submodule "extern/miz23"]
+	path = extern/miz23
+	url = git@github.com:mogproject/twinwidth-2023.git
+[submodule "extern/kar19"]
+	path = extern/kar19
+	url = git@github.com:StefanKarpinski/GraphModularDecomposition.jl.git
+[submodule "extern/lyt15"]
+	path = extern/lyt15
+	url = git@github.com:LyteFM/modular-decomposition.git
