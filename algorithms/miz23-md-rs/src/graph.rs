@@ -1,5 +1,4 @@
 use std::iter::FusedIterator;
-use crate::forest::NodeIdx;
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq, Hash)]
 pub(crate) struct VertexId(u32);
@@ -38,6 +37,7 @@ impl Graph {
     }
 }
 
+#[allow(unused)]
 impl Graph {
     pub(crate) fn neighbors(&self, u: VertexId) -> &[VertexId] {
         &self.adj[u.idx()]
@@ -128,7 +128,7 @@ mod tests {
         assert_eq!(graph.number_of_nodes(), 5);
         assert_eq!(graph.number_of_edges(), 5);
 
-        assert_eq!(graph.vertices().collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
-        assert_eq!(graph.edges().collect::<Vec<_>>(), vec![(0, 1), (1, 2), (1, 3), (2, 3), (3, 4)]);
+        assert_eq!(graph.vertices().collect::<Vec<_>>(), [0, 1, 2, 3, 4].iter().map(|&i| VertexId(i)).collect::<Vec<_>>());
+        assert_eq!(graph.edges().collect::<Vec<_>>(), [(0, 1), (1, 2), (1, 3), (2, 3), (3, 4)].iter().map(|&(i, j)| (VertexId(i), VertexId(j))).collect::<Vec<_>>());
     }
 }

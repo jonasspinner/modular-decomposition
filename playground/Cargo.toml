@@ -6,4 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+common = { path = "../common" }
+miz23-md-cpp = { path = "../algorithms/miz23-md-cpp" }
 petgraph = "0.6.3"

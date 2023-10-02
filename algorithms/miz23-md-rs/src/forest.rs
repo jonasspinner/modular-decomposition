@@ -26,7 +26,10 @@ impl<Data> Forest<Data> {
 pub(crate) struct NodeIdx(u32);
 
 impl NodeIdx {
-    pub fn new(index: usize) -> Self { assert!(index < u32::MAX as _); Self(index as u32) }
+    pub fn new(index: usize) -> Self {
+        assert!(index < u32::MAX as _);
+        Self(index as u32)
+    }
     pub fn idx(&self) -> usize {
         self.0 as usize
     }
@@ -77,19 +80,18 @@ impl<Data> std::ops::IndexMut<NodeIdx> for Forest<Data> {
     fn index_mut(&mut self, index: NodeIdx) -> &mut Self::Output { &mut self.nodes[index.idx()] }
 }
 
+#[allow(unused)]
 pub(crate) struct ChildrenWalker<Data> {
     next: Option<NodeIdx>,
     _data: PhantomData<Data>,
 }
 
+#[allow(unused)]
 impl<Data> ChildrenWalker<Data> {
     pub(crate) fn new(forest: &Forest<Data>, index: NodeIdx) -> Self {
         let next = forest[index].first_child;
         ChildrenWalker { next, _data: PhantomData }
     }
-}
-
-impl<Data> ChildrenWalker<Data> {
     fn next(&mut self, forest: &Forest<Data>) -> Option<NodeIdx> {
         if let Some(current) = self.next {
             self.next = forest[current].right;
@@ -569,6 +571,7 @@ impl<Data> Forest<Data> {
 }
 
 impl<Data: Debug> Forest<Data> {
+    #[allow(unused)]
     pub(crate) fn to_string(&self, root: Option<NodeIdx>) -> String {
         let mut ss = String::new();
 
@@ -578,7 +581,7 @@ impl<Data: Debug> Forest<Data> {
             x ^= x >> 33;
             x
         };
-        let hash_combine = |mut seed: &mut u64, x: u64| {
+        let hash_combine = |seed: &mut u64, x: u64| {
             // *seed ^= hash(x) + 0x9e3779b9 + (*seed << 6) + (*seed >> 2);
             let mut result = hash(x);
             result = result.wrapping_add(0x9e3779b9);
@@ -587,7 +590,7 @@ impl<Data: Debug> Forest<Data> {
             *seed = *seed ^ result;
         };
 
-        let mut h : u64 = 0;
+        let mut h: u64 = 0;
         for node in &self.nodes {
             if node.alive {
                 let p: u64 = node.parent.unwrap_or(NodeIdx::from(0)).idx() as _;
@@ -607,7 +610,7 @@ impl<Data: Debug> Forest<Data> {
             return ss;
         };
         let mut stack = vec![];
-        let mut visited : HashSet<Option<NodeIdx>> = HashSet::new();
+        let mut visited: HashSet<Option<NodeIdx>> = HashSet::new();
 
         stack.push(None);
         stack.push(Some(root));
@@ -638,6 +641,7 @@ impl<Data: Debug> Forest<Data> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     fn init_forest() -> Forest<u32> {
         let n = 20;
         let mut forest = Forest::new();
@@ -689,7 +693,7 @@ mod tests {
 
         assert_eq!(forest.size(), 20);
         assert_eq!(forest.capacity(), 20);
-        assert_eq!(forest.get_roots(), vec![0, 3, 10, 13]);
+        assert_eq!(forest.roots().collect::<Vec<_>>(), vec![0, 3, 10, 13]);
 
         let is_root: Vec<_> = forest.nodes.iter().take(10).map(|node| node.is_root()).collect();
         assert_eq!(is_root, vec![true, false, false, true, false, false, false, false, false, false]);
@@ -737,7 +741,7 @@ mod tests {
 
         assert_eq!(forest.size(), 20);
         assert_eq!(forest.capacity(), 20);
-        assert_eq!(forest.get_roots(), vec![0, 1, 3, 4, 5, 10, 13]);
+        assert_eq!(forest.roots().collect::<Vec<_>>(), vec![0, 1, 3, 4, 5, 10, 13]);
 
         assert_eq!(forest.check_consistency(), Ok(()));
     }
@@ -782,9 +786,9 @@ mod tests {
         assert_eq!(forest.size(), 20);
         assert_eq!(forest.capacity(), 21);
 
-        assert_eq!(forest.get_roots(), vec![0, 3, 10, 13]);
+        assert_eq!(forest.roots().collect::<Vec<_>>(), vec![0, 3, 10, 13]);
         forest.remove(NodeIdx(0));
-        assert_eq!(forest.get_roots(), vec![3, 10, 13]);
+        assert_eq!(forest.roots().collect::<Vec<_>>(), vec![3, 10, 13]);
 
         assert_eq!(forest.check_consistency(), Ok(()));
     }

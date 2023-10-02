@@ -1,6 +1,7 @@
 use crate::compute::MDComputeNode;
 use crate::forest::{Forest, NodeIdx};
 use crate::graph::{Graph, VertexId};
+use crate::trace;
 
 fn is_pivot_layer(tree: &Forest<MDComputeNode>, index: NodeIdx) -> bool {
     let node = &tree[index];
@@ -14,7 +15,7 @@ fn is_pivot_layer(tree: &Forest<MDComputeNode>, index: NodeIdx) -> bool {
 }
 
 fn pull_forward(tree: &mut Forest<MDComputeNode>, v: NodeIdx) {
-    println!("pull_forward(): v={}", v.idx());
+    trace!("pull_forward(): v={}", v.idx());
 
     let current_layer = tree[v].parent.unwrap();
     assert!(tree.is_valid(current_layer));
@@ -25,13 +26,13 @@ fn pull_forward(tree: &mut Forest<MDComputeNode>, v: NodeIdx) {
     let mut prev_layer = tree[current_layer].left.unwrap();
     assert!(tree.is_valid(prev_layer));
 
-    println!("tree[prev_layer].data.active={}, is_pivot_layer()={}", tree[prev_layer].data.active as i32, is_pivot_layer(tree, prev_layer) as i32);
+    trace!("tree[prev_layer].data.active={}, is_pivot_layer()={}", tree[prev_layer].data.active as i32, is_pivot_layer(tree, prev_layer) as i32);
 
     if tree[prev_layer].data.active || is_pivot_layer(tree, prev_layer) {
         let new_layer = tree.create_node(MDComputeNode::new_problem_node(true));
         tree.move_to_before(new_layer, current_layer);
         prev_layer = new_layer;
-        println!("new layer formed: {}", tree.to_string(tree[prev_layer].parent));
+        trace!("new layer formed: {}", tree.to_string(tree[prev_layer].parent));
     }
 
     if tree[prev_layer].data.connected { tree.move_to(v, prev_layer); }
@@ -40,7 +41,7 @@ fn pull_forward(tree: &mut Forest<MDComputeNode>, v: NodeIdx) {
 
 
 pub(crate) fn process_neighbors(graph: &Graph, tree: &mut Forest<MDComputeNode>, alpha_list: &mut [Vec<NodeIdx>], visited: &[bool], pivot: VertexId, current_problem: NodeIdx, neighbor_problem: Option<NodeIdx>) {
-    println!("enter: pivot={}, current_prob={}, nbr_prob={:?}", pivot.idx(), current_problem.idx(), neighbor_problem);
+    trace!("enter: pivot={}, current_prob={}, nbr_prob={:?}", pivot.idx(), current_problem.idx(), neighbor_problem);
 
     for &neighbor in graph.neighbors(pivot) {
         let neighbor = NodeIdx::from(neighbor.idx());
@@ -50,7 +51,7 @@ pub(crate) fn process_neighbors(graph: &Graph, tree: &mut Forest<MDComputeNode>,
             let neighbor_problem = tree.as_valid(neighbor_problem).unwrap();
             tree.move_to(neighbor, neighbor_problem);
         } else {
-            println!("pull_forward(): nbr={}", neighbor.idx());
+            trace!("pull_forward(): nbr={}", neighbor.idx());
             pull_forward(tree, neighbor);
         }
     }

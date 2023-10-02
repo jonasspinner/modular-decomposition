@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use crate::{compute, forest};
 use crate::compute::{compute, MDComputeNode, Operation};
 use crate::forest::{Forest, NodeIdx};
 use crate::graph::{Graph, VertexId};
 
+#[allow(unused)]
 enum Kind {
     Vertex(VertexId),
     Operation(Operation),
@@ -15,9 +15,10 @@ struct MDNode {
     vertices_end: i32,
 }
 
+#[allow(unused)]
 impl MDNode {
     fn new(kind: Kind, vertices_begin: i32, vertices_end: i32) -> Self {
-        Self {kind, vertices_begin, vertices_end}
+        Self { kind, vertices_begin, vertices_end }
     }
     fn size(&self) -> usize { (self.vertices_end - self.vertices_begin) as usize }
     fn is_vertex_node(&self) -> bool { matches!(self.kind, Kind::Vertex(_)) }
@@ -27,27 +28,28 @@ impl MDNode {
     fn is_parallel_node(&self) -> bool { matches!(self.kind, Kind::Operation(Operation::Parallel)) }
 }
 
-struct MDTree {
-    tree: forest::Forest<MDNode>,
-    root: Option<VertexId>,
+#[allow(unused)]
+pub(crate) struct MDTree {
+    tree: Forest<MDNode>,
+    root: NodeIdx,
     vertices: Vec<VertexId>,
 }
 
+#[allow(unused)]
 impl MDTree {
-    fn new(graph: &Graph, sorted: bool) -> Self {
-        let result = compute(graph);
-        if let Some(root) = result.1 {
-            let mut ret = MDTree::from_result(&result.0, root);
+    pub(crate) fn new(graph: &Graph, sorted: bool) -> Option<Self> {
+        let (tree, root) = compute(graph);
+        root.map(|root| {
+            let mut ret = MDTree::from_result(&tree, root);
             if sorted {
                 ret.sort();
             }
             return ret;
-        }
-        MDTree { tree: Forest::new(), root: None, vertices: vec![] }
+        })
     }
 
     fn from_result(tree: &Forest<MDComputeNode>, root: NodeIdx) -> Self {
-        let mut this = MDTree { tree: Forest::new(), root: None, vertices: vec![] };
+        let mut this = MDTree { tree: Forest::new(), root, vertices: vec![] };
         this.vertices = tree.leaves(root).map(|n| VertexId::from(n.idx())).collect();
         this.vertices.reverse();
 
@@ -69,7 +71,7 @@ impl MDTree {
             if tree[it].data.is_vertex_node() { continue; };
             if tree[it].data.is_problem_node() { panic!("should not be a problem node"); }
 
-            let children : Vec<_> = tree.children(it).collect();
+            let children: Vec<_> = tree.children(it).collect();
             let op = tree[it].data.op_type;
             let mut idx_begin = n as i32;
             let mut idx_end = 0;
@@ -83,7 +85,7 @@ impl MDTree {
             mapping.insert(VertexId::from(it.idx()), node_idx.idx());
         }
 
-        this.root = Some(mapping[&VertexId::from(root.idx())].into());
+        this.root = mapping[&VertexId::from(root.idx())].into();
 
         this
     }

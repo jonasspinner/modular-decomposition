@@ -4,13 +4,13 @@ use crate::compute::refinement::group_sibling_nodes::group_sibling_nodes;
 use crate::compute::refinement::marking_split_types::{add_split_mark, get_max_subtrees, mark_ancestors_by_split};
 use crate::compute::refinement::set_up::{number_by_comp, number_by_tree};
 use crate::compute::refinement::utilities::is_root_operator;
-use crate::compute::SplitDirection::{Left, Right};
 use crate::forest::{Forest, NodeIdx};
 use crate::graph::VertexId;
+use crate::trace;
 
 mod set_up {
     use crate::compute::{MDComputeNode, Operation};
-    use crate::forest::{ChildrenWalker, Forest};
+    use crate::forest::Forest;
     use crate::forest::NodeIdx;
 
     pub(crate) fn number_by_comp(tree: &mut Forest<MDComputeNode>, problem: NodeIdx) {
@@ -141,7 +141,7 @@ mod group_sibling_nodes {
     use crate::forest::NodeIdx;
 
     pub(crate) fn group_sibling_nodes(tree: &mut Forest<MDComputeNode>, nodes: &[NodeIdx]) -> Vec<(NodeIdx, bool)> {
-        //println!("group_sibling_nodes start: {}", tree.to_string(Some(tree.get_root(NodeIdx::from(0)))));
+        //trace!("group_sibling_nodes start: {}", tree.to_string(Some(tree.get_root(NodeIdx::from(0)))));
         let mut parents = vec![];
         let mut sibling_groups = vec![];
 
@@ -157,7 +157,7 @@ mod group_sibling_nodes {
             }
         }
 
-        //println!("group_sibling_nodes mid:   {}", tree.to_string(Some(tree.get_root(NodeIdx::from(0)))));
+        //trace!("group_sibling_nodes mid:   {}", tree.to_string(Some(tree.get_root(NodeIdx::from(0)))));
 
         for p in parents {
             let c = tree[p].first_child.unwrap();
@@ -176,7 +176,7 @@ mod group_sibling_nodes {
                 }
 
                 let mut c_ = tree[p].first_child;
-                for i in 0..num_marks {
+                for _i in 0..num_marks {
                     let c = c_.unwrap();
                     let next = tree[c].right;
                     tree.move_to(c, grouped_children);
@@ -197,7 +197,7 @@ mod group_sibling_nodes {
             tree[p].data.clear_marks();
         }
 
-        //println!("group_sibling_nodes end:   {}", tree.to_string(Some(tree.get_root(NodeIdx::from(0)))));
+        //trace!("group_sibling_nodes end:   {}", tree.to_string(Some(tree.get_root(NodeIdx::from(0)))));
 
         sibling_groups
     }
@@ -209,24 +209,24 @@ fn get_split_type(tree: &Forest<MDComputeNode>, index: NodeIdx, refiner: VertexI
     let pivot_tn = tree[pivot].data.tree_number;
     let refiner_tn = tree[refiner].data.tree_number;
     let current = tree[index].data.tree_number;
-    if current < pivot_tn || refiner_tn < current { Left } else { Right }
+    if current < pivot_tn || refiner_tn < current { SplitDirection::Left } else { SplitDirection::Right }
 }
 
 fn refine_one_node(tree: &mut Forest<MDComputeNode>, index: NodeIdx, split_type: SplitDirection, new_prime: bool) {
-    println!("refining tree={}, index={}, split_type={:?}, new_prime={}", tree.to_string(Some(index)), index.idx(), split_type, new_prime as i32);
+    trace!("refining tree={}, index={}, split_type={:?}, new_prime={}", tree.to_string(Some(index)), index.idx(), split_type, new_prime as i32);
     if is_root_operator(tree, index) { return; }
 
     let p = tree[index].parent.unwrap();
     let mut new_sibling = None;
 
     if is_root_operator(tree, p) {
-        if split_type == Left {
+        if split_type == SplitDirection::Left {
             tree.move_to_before(index, p);
         } else {
             tree.move_to_after(index, p);
         }
 
-        for st in [Left, Right] {
+        for st in [SplitDirection::Left, SplitDirection::Right] {
             if tree[index].data.is_split_marked(st) {
                 tree[p].data.decrement_num_split_children(st);
             }
@@ -247,7 +247,7 @@ fn refine_one_node(tree: &mut Forest<MDComputeNode>, index: NodeIdx, split_type:
 
         new_sibling = Some(p);
 
-        for st in [Left, Right] {
+        for st in [SplitDirection::Left, SplitDirection::Right] {
             if tree[index].data.is_split_marked(st) {
                 tree[p].data.decrement_num_split_children(st);
                 tree[replacement].data.increment_num_split_children(st);
@@ -270,9 +270,9 @@ fn refine_with(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], re
 
     let sibling_groups = group_sibling_nodes(tree, &subtree_roots);
 
-    println!("alpha[{}]: {:?}", refiner.idx(), alpha_list[refiner.idx()].iter().map(|n| n.idx()).collect::<Vec<_>>());
-    println!("subtree_roots: {:?}", subtree_roots.iter().map(|n| n.idx()).collect::<Vec<_>>());
-    println!("sibling_groups: {:?}, tree={}", sibling_groups.iter().map(|(n, b)| (n.idx(), *b as i32)).collect::<Vec<_>>(), tree.to_string(tree[NodeIdx::from(pivot.idx())].parent));
+    trace!("alpha[{}]: {:?}", refiner.idx(), alpha_list[refiner.idx()].iter().map(|n| n.idx()).collect::<Vec<_>>());
+    trace!("subtree_roots: {:?}", subtree_roots.iter().map(|n| n.idx()).collect::<Vec<_>>());
+    trace!("sibling_groups: {:?}, tree={}", sibling_groups.iter().map(|(n, b)| (n.idx(), *b as i32)).collect::<Vec<_>>(), tree.to_string(tree[NodeIdx::from(pivot.idx())].parent));
 
     for (index, new_prime) in sibling_groups {
         let split_type = get_split_type(tree, index, refiner, pivot);
@@ -282,7 +282,7 @@ fn refine_with(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], re
 }
 
 pub(crate) fn refine(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], problem: NodeIdx, leaves: &[NodeIdx]) {
-    println!("start: {}", tree.to_string(Some(problem)));
+    trace!("start: {}", tree.to_string(Some(problem)));
 
     number_by_comp(tree, problem);
 

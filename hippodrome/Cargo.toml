@@ -1,0 +1,19 @@
+[package]
+name = "hippodrome"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+miz23-md-cpp = { path = "../algorithms/miz23-md-cpp" }
+miz23-md-rs = { path = "../algorithms/miz23-md-rs" }
+common =  { path = "../common" }
+petgraph = "0.6.3"
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "benchmark"
+harness = false

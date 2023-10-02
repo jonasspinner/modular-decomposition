@@ -4,14 +4,15 @@ mod misc;
 mod pivot;
 mod assembly;
 
-use std::fmt::{Debug, Formatter, write};
+use std::fmt::{Debug, Formatter};
 use crate::graph::VertexId;
 use crate::forest::{NodeIdx, Forest};
 use crate::graph::Graph;
+use crate::trace;
 
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-enum NodeType {
+pub(crate) enum NodeType {
     Vertex,
     Operation,
     Problem,
@@ -34,10 +35,10 @@ pub(crate) enum SplitDirection {
 
 #[derive(Clone)]
 pub(crate) struct MDComputeNode {
-    node_type: NodeType,
+    pub(crate) node_type: NodeType,
     pub(crate) op_type: Operation,
     split_direction: SplitDirection,
-    vertex: VertexId,
+    pub(crate) vertex: VertexId,
     comp_number: i32,
     tree_number: i32,
     num_marks: i32,
@@ -179,7 +180,7 @@ pub(crate) fn compute(graph: &Graph) -> (Forest<MDComputeNode>, Option<NodeIdx>)
 
     let new_root = implementation::compute(graph, &mut tree, main_problem);
 
-    println!("result: {}", tree.to_string(Some(new_root)));
+    trace!("result: {}", tree.to_string(Some(new_root)));
     return (tree, Some(new_root));
 }
 
@@ -193,9 +194,10 @@ mod implementation {
     use crate::forest::{Forest, NodeIdx};
     use crate::graph::{Graph, VertexId};
     use crate::set::FastSet;
+    use crate::trace;
 
     pub(crate) fn compute(graph: &Graph, tree: &mut Forest<MDComputeNode>, main_problem: NodeIdx) -> NodeIdx {
-        println!("start computer(): {}", tree.to_string(Some(main_problem)));
+        trace!("start computer(): {}", tree.to_string(Some(main_problem)));
         let n = graph.number_of_nodes();
         let mut current_problem_ = Some(main_problem);
         let mut alpha_list: Vec<Vec<NodeIdx>> = vec![vec![]; n];
@@ -204,15 +206,17 @@ mod implementation {
         let mut vset = FastSet::new(n);
         let mut result = NodeIdx::from(0);
 
+        #[allow(unused)]
         let mut t = 0;
 
         while let Some(current_problem) = tree.as_valid(current_problem_) {
             t += 1;
-            println!("main problem ({}): {}", t, tree.to_string(Some(tree.get_root(current_problem))));
-            println!("current problem: {}", tree.to_string(Some(current_problem)));
+            trace!("main problem ({}): {}", t, tree.to_string(Some(tree.get_root(current_problem))));
+            trace!("current problem: {}", tree.to_string(Some(current_problem)));
+            #[allow(unused)]
             for i in 0..n {
-                println!("visited [{}]: {:?}", i, visited[i]);
-                println!("alpha [{}]: {:?}", i, alpha_list[i].iter().map(|n| n.idx()).collect::<Vec<_>>());
+                trace!("visited [{}]: {:?}", i, visited[i]);
+                trace!("alpha [{}]: {:?}", i, alpha_list[i].iter().map(|n| n.idx()).collect::<Vec<_>>());
             }
 
             tree[current_problem].data.active = true;
@@ -233,7 +237,7 @@ mod implementation {
                 }
             } else {
                 let extra_components = remove_extra_components(tree, current_problem);
-                println!("extra: {}", tree.to_string(extra_components));
+                trace!("extra: {}", tree.to_string(extra_components));
 
                 remove_layers(tree, current_problem);
 

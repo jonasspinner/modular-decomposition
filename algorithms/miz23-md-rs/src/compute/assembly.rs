@@ -3,6 +3,7 @@ use crate::compute::{MDComputeNode, Operation};
 use crate::forest::{Forest, NodeIdx};
 use crate::graph::VertexId;
 use crate::set::FastSet;
+use crate::trace;
 
 fn determine_left_cocomp_fragments(tree: &Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: usize) -> Vec<bool> {
     let mut ret = vec![false; ps.len()];
@@ -41,7 +42,7 @@ fn determine_right_layer_neighbor(tree: &Forest<MDComputeNode>, alpha_list: &[Ve
 }
 
 fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], ps: &[NodeIdx], pivot_index: usize, vset: &mut FastSet, fp_neighbors: &mut Vec<Vec<VertexId>>) {
-    println!("compute_fact_perm_edges {}", alpha_list.len());
+    trace!("compute_fact_perm_edges {}", alpha_list.len());
     let k = ps.len();
 
     for i in 0..pivot_index {
@@ -81,7 +82,7 @@ fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<N
     }
 }
 
-fn compute_mu(tree: &mut Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: usize, neighbors: &[Vec<VertexId>]) -> Vec<usize> {
+fn compute_mu(_tree: &mut Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: usize, neighbors: &[Vec<VertexId>]) -> Vec<usize> {
     let mut mu: Vec<usize> = vec![0; ps.len()];
 
     for i in 0..mu.len() {

@@ -1,12 +1,11 @@
-use std::ops::Index;
 use crate::compute::Operation;
 use crate::compute::MDComputeNode;
 use crate::forest::{Forest, NodeIdx};
-use crate::graph::VertexId;
 use crate::set::FastSet;
+use crate::trace;
 
 pub(crate) fn remove_extra_components(tree: &mut Forest<MDComputeNode>, prob: NodeIdx) -> Option<NodeIdx> {
-    println!("start: {}", tree.to_string(Some(prob)));
+    trace!("start: {}", tree.to_string(Some(prob)));
 
     let mut subprob = tree[prob].first_child;
 
@@ -24,12 +23,12 @@ pub(crate) fn remove_extra_components(tree: &mut Forest<MDComputeNode>, prob: No
         assert!(tree[subprob].is_leaf());
         tree.remove(subprob);
     }
-    println!("return: {}", tree.to_string(ret));
+    trace!("return: {}", tree.to_string(ret));
     return ret;
 }
 
 pub(crate) fn remove_layers(tree: &mut Forest<MDComputeNode>, prob: NodeIdx) {
-    println!("start: {}", tree.to_string(Some(prob)));
+    trace!("start: {}", tree.to_string(Some(prob)));
     let mut child = tree[prob].first_child;
     while let Some(c_) = tree.as_valid(child) {
         let next = tree[c_].right;
@@ -38,11 +37,12 @@ pub(crate) fn remove_layers(tree: &mut Forest<MDComputeNode>, prob: NodeIdx) {
         tree.remove(c_);
         child = next;
     }
-    println!("finish: {}", tree.to_string(Some(prob)));
+    trace!("finish: {}", tree.to_string(Some(prob)));
 }
 
-pub(crate) fn complete_alpha_lists(tree: &mut Forest<MDComputeNode>, alpha_list: &mut [Vec<NodeIdx>], vset: &mut FastSet, prob: NodeIdx, leaves: &[NodeIdx]) {
-    println!("start: {}", tree.to_string(Some(prob)));
+#[allow(unused)]
+pub(crate) fn complete_alpha_lists(tree: &Forest<MDComputeNode>, alpha_list: &mut [Vec<NodeIdx>], vset: &mut FastSet, prob: NodeIdx, leaves: &[NodeIdx]) {
+    trace!("start: {}", tree.to_string(Some(prob)));
 
     for &v in leaves {
         for a in alpha_list[v.idx()].iter().copied().collect::<Vec<_>>() {
@@ -71,7 +71,7 @@ pub(crate) fn complete_alpha_lists(tree: &mut Forest<MDComputeNode>, alpha_list:
 }
 
 pub(crate) fn merge_components(tree: &mut Forest<MDComputeNode>, problem: NodeIdx, new_components: Option<NodeIdx>) {
-    println!("start: prob={}, new={}", tree.to_string(Some(problem)), tree.to_string(new_components));
+    trace!("start: prob={}, new={}", tree.to_string(Some(problem)), tree.to_string(new_components));
 
     let Some(new_components) = new_components else { return; };
     if !tree.is_valid(new_components) { return; }

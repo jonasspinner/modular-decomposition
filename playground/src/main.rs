@@ -1,11 +1,14 @@
 mod modular_partition;
-mod standard_partition_data_structure;
+mod lexbfs;
 
-use std::fmt::{Debug};
-use std::error::Error;
-use petgraph::adj::{IndexType};
-use petgraph::graph::{UnGraph};
-use petgraph::visit::{EdgeRef, IntoEdgeReferences, NodeCount};
+mod splitters;
+mod list;
+mod partition_refinement;
+mod modular_functions;
+
+use petgraph::dot::{Config, Dot};
+use petgraph::graph::UnGraph;
+use petgraph::visit::{IntoNeighbors, NodeCount};
 use crate::modular_partition::modular_partition;
 
 fn small_graph() -> UnGraph<(), ()> {
@@ -25,14 +28,15 @@ fn small_graph() -> UnGraph<(), ()> {
 }
 
 
+#[allow(non_snake_case)]
 fn main() {
     let graph = small_graph();
-    let partition = vec![vec![5, 6], vec![0, 1, 2, 3, 4, 7, 8, 9, 10]];
+    let _partition = vec![vec![5, 6], vec![0, 1, 2, 3, 4, 7, 8, 9, 10]];
     //let partition = vec![vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]];
 
     let partition = vec![vec![3, 4], vec![0, 1, 2, 5, 6, 7, 8, 9, 10]];
 
-    let (time, Q) = modular_partition(partition.clone(), &graph);
+    let Q = modular_partition(&partition, &graph);
 
     println!("{:?}", partition);
     println!("{:?}", Q);
@@ -44,4 +48,37 @@ fn main() {
 
     fs::write(format!("partition.dot"), partition.to_dot()).unwrap();
     */
+
+    //println!("{:?}", Dot::with_config(&graph, &[Config::NodeIndexLabel, Config::EdgeNoLabel]));
+
+
+    let mut graph = small_graph();
+
+    let mut partition = crate::partition_refinement::Partition::new(graph.node_count());
+    for u in graph.node_indices() {
+        partition.refine(graph.neighbors(u).map(|v| v.index() as _));
+    }
+    println!("{:?}", partition);
+
+    let mut keep = vec![false; graph.node_count()];
+    for mut part in partition.parts() {
+        let u = part.next().unwrap();
+        keep[u as usize] = true;
+    }
+    graph.retain_nodes(|a, u| { keep[u.index()] });
+
+    let mut partition = partition_refinement::Partition::new(graph.node_count());
+    for u in graph.node_indices() {
+        partition.refine(graph.neighbors(u).chain(std::iter::once(u)).map(|v| v.index() as _));
+    }
+    println!("{:?}", partition);
+
+    let mut keep = vec![false; graph.node_count()];
+    for mut part in partition.parts() {
+        let u = part.next().unwrap();
+        keep[u as usize] = true;
+    }
+    graph.retain_nodes(|a, u| { keep[u.index()] });
+
+    println!("{:?}", Dot::with_config(&graph, &[Config::NodeIndexLabel, Config::EdgeNoLabel]));
 }

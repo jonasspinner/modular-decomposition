@@ -1,23 +1,21 @@
 use std::collections::{HashSet, VecDeque};
 use std::mem::replace;
 use petgraph::{Graph, Undirected};
-use petgraph::adj::{IndexType};
+use petgraph::adj::IndexType;
 use petgraph::graph::NodeIndex;
-use petgraph::visit::Walker;
 
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, dead_code)]
 fn overlap(A: impl IntoIterator<Item=u32>, B: impl IntoIterator<Item=u32>) -> bool {
-    let mut A: HashSet<u32> = A.into_iter().collect();
-    let mut B: HashSet<u32> = B.into_iter().collect();
+    let A: HashSet<u32> = A.into_iter().collect();
+    let B: HashSet<u32> = B.into_iter().collect();
     return !A.is_disjoint(&B) && !A.is_subset(&B) && !B.is_subset(&A);
 }
 
 
 #[allow(non_snake_case)]
-pub(crate) fn modular_partition<N, E, Ix>(partition: Vec<Vec<u32>>, graph: &Graph<N, E, Undirected, Ix>) -> (f32, Vec<Vec<u32>>)
+pub(crate) fn modular_partition<N, E, Ix>(partition: &Vec<Vec<u32>>, graph: &Graph<N, E, Undirected, Ix>) -> Vec<Vec<u32>>
     where Ix: IndexType {
-    let mut partition = partition;
     let (z_index, _) = partition.iter().enumerate().fold(None, |max, (i, part)| {
         match max {
             None => Some((i, part.len())),
@@ -29,7 +27,7 @@ pub(crate) fn modular_partition<N, E, Ix>(partition: Vec<Vec<u32>>, graph: &Grap
     // Let Z be the largest part of P
     // Q <- P; K <- { Z }; L <- { X | X ≠ Z, X ∈ P }
     let mut Q = partition.clone();
-    let mut L = partition;
+    let mut L = partition.clone();
     let mut K = VecDeque::new();
     K.push_front(L.remove(z_index));
 
@@ -108,5 +106,20 @@ pub(crate) fn modular_partition<N, E, Ix>(partition: Vec<Vec<u32>>, graph: &Grap
 
     println!("Q = {:?}", Q);
 
-    (0.0, Q)
+    Q
+}
+
+mod test {
+    use petgraph::Graph;
+    use common::instances::ted08_test0;
+    use crate::modular_partition::modular_partition;
+
+    #[test]
+    fn basic() {
+        let graph = ted08_test0();
+        let partition = vec![vec![3, 4], vec![0, 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]];
+
+        let modular_partition = modular_partition(&partition, &graph);
+        assert_eq!(modular_partition, [vec![1], vec![0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]]);
+    }
 }
