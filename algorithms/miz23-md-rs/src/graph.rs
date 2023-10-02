@@ -32,22 +32,22 @@ impl Graph {
     pub(crate) fn number_of_nodes(&self) -> usize {
         self.adj.len()
     }
-    fn number_of_edges(&self) -> usize {
-        self.num_edges
-    }
+    #[allow(dead_code)]
+    pub(crate) fn number_of_edges(&self) -> usize { self.num_edges }
 }
 
-#[allow(unused)]
 impl Graph {
     pub(crate) fn neighbors(&self, u: VertexId) -> &[VertexId] {
         &self.adj[u.idx()]
     }
+    #[allow(dead_code)]
     fn degree(&self, u: VertexId) -> usize {
         self.adj[u.idx()].len()
     }
     fn has_vertex(&self, u: VertexId) -> bool {
         u.idx() < self.adj.len()
     }
+    #[allow(dead_code)]
     fn has_edge(&self, mut u: VertexId, mut v: VertexId) -> bool {
         if !self.has_vertex(u) || !self.has_vertex(v) || u == v { return false; }
         if self.degree(u) > self.degree(v) { std::mem::swap(&mut u, &mut v); }
@@ -72,6 +72,7 @@ pub(crate) struct EdgeIter<'a> {
 }
 
 impl<'a> EdgeIter<'a> {
+    #[allow(dead_code)]
     fn new(graph: &'a Graph) -> Self {
         EdgeIter { graph, u: VertexId(0), v_idx: 0 }
     }
@@ -101,8 +102,9 @@ impl FusedIterator for EdgeIter<'_> {}
 
 impl Graph {
     pub(crate) fn vertices(&self) -> impl Iterator<Item=VertexId> {
-        (0..self.number_of_nodes()).map(|idx| VertexId::from(idx))
+        (0..self.number_of_nodes()).map(VertexId::from)
     }
+    #[allow(dead_code)]
     pub(crate) fn edges(&self) -> EdgeIter<'_> {
         EdgeIter::new(self)
     }

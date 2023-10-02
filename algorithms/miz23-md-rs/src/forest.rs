@@ -68,7 +68,7 @@ impl<Data> Node<Data> {
     pub fn is_leaf(&self) -> bool { self.first_child.is_none() }
     pub fn has_child(&self) -> bool { self.first_child.is_some() }
     pub fn has_only_one_child(&self) -> bool { self.num_children == 1 }
-    pub fn number_of_children(&self) -> u32 { return self.num_children; }
+    pub fn number_of_children(&self) -> u32 { self.num_children }
 }
 
 impl<Data> Index<NodeIdx> for Forest<Data> {
@@ -188,6 +188,7 @@ pub(crate) struct PreOrderNodeIdxIter<'a, Data> {
 }
 
 impl<'a, Data> PreOrderNodeIdxIter<'a, Data> {
+    #[allow(dead_code)]
     fn new(forest: &'a Forest<Data>, index: NodeIdx) -> Self {
         PreOrderNodeIdxIter { forest, start: index, next: Some(index) }
     }
@@ -226,6 +227,7 @@ impl<Data> Iterator for PreOrderNodeIdxIter<'_, Data> {
 
 
 impl<Data> Forest<Data> {
+    #[allow(dead_code)]
     pub fn pre_order_node_indices(&self, index: NodeIdx) -> PreOrderNodeIdxIter<Data> {
         PreOrderNodeIdxIter::new(self, index)
     }
@@ -295,6 +297,7 @@ impl<Data> Forest<Data> {
 
 
 impl<Data> Forest<Data> {
+    #[allow(dead_code)]
     pub fn roots(&self) -> impl Iterator<Item=NodeIdx> + '_ {
         self.nodes.iter()
             .enumerate()
@@ -362,7 +365,7 @@ impl<Data> Forest<Data> {
             }
             if let Some(left) = left { self[left].right = Some(y); }
             if let Some(right) = right { self[right].left = Some(y); }
-            return (parent, left, right);
+            (parent, left, right)
         };
 
         let prev_a_adj = update_adj(a, b);
@@ -414,7 +417,7 @@ impl<Data> Forest<Data> {
     pub fn replace(&mut self, index: NodeIdx, replace_by: NodeIdx) {
         assert!(self.is_valid(index));
         assert!(self.is_valid(replace_by));
-        assert!(index != replace_by);
+        assert_ne!(index, replace_by);
         debug_assert!(!self.ancestors(index).any(|a| a == replace_by));
 
         self.detach(replace_by);
@@ -537,6 +540,7 @@ impl<Data> Forest<Data> {
         self.move_to(target, index);
     }
 
+    #[allow(dead_code)]
     fn check_consistency(&self) -> Result<(), String> {
         let mut num_alive = 0;
         for index in (0..self.capacity()).map(|i| NodeIdx(i as u32)) {
@@ -571,7 +575,7 @@ impl<Data> Forest<Data> {
 }
 
 impl<Data: Debug> Forest<Data> {
-    #[allow(unused)]
+    #[allow(dead_code)]
     pub(crate) fn to_string(&self, root: Option<NodeIdx>) -> String {
         let mut ss = String::new();
 
@@ -587,7 +591,7 @@ impl<Data: Debug> Forest<Data> {
             result = result.wrapping_add(0x9e3779b9);
             result = result.wrapping_add(*seed << 6);
             result = result.wrapping_add(*seed >> 2);
-            *seed = *seed ^ result;
+            *seed ^= result;
         };
 
         let mut h: u64 = 0;
@@ -603,10 +607,10 @@ impl<Data: Debug> Forest<Data> {
                 hash_combine(&mut h, c);
             }
         }
-        ss.push_str(&*format!("[{:#x}]#", h));
+        ss.push_str(&format!("[{:#x}]#", h));
 
         let Some(root) = self.as_valid(root) else {
-            ss.push_str(&*format!("invalid({:?})", root));
+            ss.push_str(&format!("invalid({:?})", root));
             return ss;
         };
         let mut stack = vec![];
@@ -621,7 +625,7 @@ impl<Data: Debug> Forest<Data> {
                     return "cycle detected".to_string();
                 }
                 visited.insert(Some(p));
-                ss.push_str(&*format!("({:?}", self[p].data));
+                ss.push_str(&format!("({:?}", self[p].data));
 
                 let st = self.children(p).collect::<Vec<_>>();
                 for &it in st.iter().rev() {
@@ -648,7 +652,7 @@ mod tests {
         for i in 0..n {
             forest.create_node(i);
         }
-        let relations: Vec<_> = vec![
+        let relations: Vec<_> = [
             (3, 1), (3, 5), (3, 4), (5, 9), (5, 2), (4, 7), (7, 6), (7, 8),
             (13, 11), (13, 15), (13, 14), (15, 19), (15, 12), (14, 17), (17, 16), (17, 18),
         ].iter().map(|(a, b)| (NodeIdx(*a), NodeIdx(*b))).collect();
@@ -671,7 +675,7 @@ mod tests {
                 if visited[p.idx()] { return "cycle detected".into(); }
                 visited[p.idx()] = true;
                 ss.push('(');
-                ss.push_str(&*format!("{:?}", forest[p].data));
+                ss.push_str(&format!("{:?}", forest[p].data));
 
                 let st = forest.children(p).collect::<Vec<_>>();
 
