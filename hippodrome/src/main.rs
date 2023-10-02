@@ -8,7 +8,7 @@ use petgraph::visit::DfsPostOrder;
 use common::modular_decomposition::MDNodeKind;
 
 
-fn canocicalize(md_tree: &DiGraph<MDNodeKind, ()>) -> Vec<(u32, u32, MDNodeKind)> {
+fn canonicalize(md_tree: &DiGraph<MDNodeKind, ()>) -> Vec<(u32, u32, MDNodeKind)> {
     let root = md_tree.externals(Incoming).next().unwrap();
     let mut dfs = DfsPostOrder::new(md_tree, root);
 
@@ -17,12 +17,9 @@ fn canocicalize(md_tree: &DiGraph<MDNodeKind, ()>) -> Vec<(u32, u32, MDNodeKind)
     while let Some(a) = dfs.next(md_tree) {
         let mut min_vertex = u32::MAX;
         let mut num_vertices = 0;
-        match md_tree[a] {
-            MDNodeKind::Vertex(u) => {
-                min_vertex = u as u32;
-                num_vertices = 1;
-            }
-            _ => {}
+        if let MDNodeKind::Vertex(u) = md_tree[a] {
+            min_vertex = u as u32;
+            num_vertices = 1;
         }
         for b in md_tree.neighbors_directed(a, Outgoing) {
             let (a_min, a_num, _) = result[b.index()];
@@ -44,16 +41,21 @@ fn main() {
     for path in paths {
         let graph = common::io::read_pace2023(&path).unwrap();
 
+        let problem = miz23_md_rs::prepare(&graph);
         let start = Instant::now();
-        let md0 = miz23_md_rs::modular_decomposition(&graph);
+        let result = problem.compute();
         let t0 = start.elapsed();
+        let md0 = result.finalize();
 
+        let problem = miz23_md_cpp::prepare(&graph);
         let start = Instant::now();
-        let md1 = miz23_md_cpp::modular_decomposition(&graph);
+        let result = problem.compute();
         let t1 = start.elapsed();
+        let md1 = result.finalize();
 
-        assert_eq!(canocicalize(&md0), canocicalize(&md1));
-        println!("{}     Rust {:8} μs     C++ {:8} μs", path.file_name().and_then(OsStr::to_str).unwrap(), t0.as_micros(), t1.as_micros());
+
+        assert_eq!(canonicalize(&md0), canonicalize(&md1));
+        println!("{}     Rust {:8} μs     C++ {:8} μs     {:3.7}", path.file_name().and_then(OsStr::to_str).unwrap(), t0.as_micros(), t1.as_micros(), (t0.as_nanos() as f64 / t1.as_nanos()  as f64));
     }
 
     let graph = common::io::read_pace2023("hippodrome/instances/pace2023/exact_001.gr").unwrap();
@@ -61,5 +63,5 @@ fn main() {
     let md0 = miz23_md_rs::modular_decomposition(&graph);
     let md1 = miz23_md_cpp::modular_decomposition(&graph);
 
-    assert_eq!(canocicalize(&md0), canocicalize(&md1));
+    assert_eq!(canonicalize(&md0), canonicalize(&md1));
 }
