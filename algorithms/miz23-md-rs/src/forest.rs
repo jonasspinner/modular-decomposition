@@ -140,7 +140,7 @@ impl<Data> FusedIterator for ChildrenIter<'_, Data> {}
 
 impl<Data> Forest<Data> {
     pub fn children(&self, index: NodeIdx) -> ChildrenIter<Data> {
-        assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(index));
         ChildrenIter::new(self, index)
     }
 }
@@ -174,7 +174,7 @@ impl<Data> FusedIterator for AncestorIter<'_, Data> {}
 
 impl<Data> Forest<Data> {
     pub fn ancestors(&self, index: NodeIdx) -> AncestorIter<Data> {
-        assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(index));
 
         AncestorIter::new(self, index)
     }
@@ -266,7 +266,7 @@ impl<Data> Forest<Data> {
 
 impl<Data> Forest<Data> {
     pub fn get_root(&self, mut index: NodeIdx) -> NodeIdx {
-        assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(index));
 
         while let Some(parent_idx) = self[index].parent {
             index = parent_idx;
@@ -284,7 +284,7 @@ impl<Data> Forest<Data> {
     pub fn create_node(&mut self, data: Data) -> NodeIdx {
         self.num_live_nodes += 1;
         if let Some(index) = self.removed.pop_front() {
-            assert!(!self.nodes[index.idx()].is_alive());
+            debug_assert!(!self.nodes[index.idx()].is_alive());
             self.nodes[index.idx()] = Node::new(data);
             index
         } else {
@@ -309,9 +309,9 @@ impl<Data> Forest<Data> {
     }
 
     pub fn remove(&mut self, index: NodeIdx) {
-        assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(index));
         self.detach(index);
-        assert!(self.nodes[index.idx()].is_leaf());
+        debug_assert!(self.nodes[index.idx()].is_leaf());
 
         self.num_live_nodes -= 1;
         self.nodes[index.idx()].alive = false;
@@ -319,8 +319,8 @@ impl<Data> Forest<Data> {
     }
 
     pub fn add_child(&mut self, parent: NodeIdx, child: NodeIdx) {
-        assert!(self.is_valid(parent));
-        assert!(self.is_valid(child));
+        debug_assert!(self.is_valid(parent));
+        debug_assert!(self.is_valid(child));
 
         if let Some(first) = self[parent].first_child.replace(child) {
             self[first].left = Some(child);
@@ -332,7 +332,7 @@ impl<Data> Forest<Data> {
     }
 
     pub fn detach(&mut self, index: NodeIdx) {
-        assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(index));
 
         let Node { parent, left, right, .. } = self[index];
         if let Some(parent) = parent {
@@ -350,11 +350,11 @@ impl<Data> Forest<Data> {
     }
 
     pub fn swap(&mut self, a: NodeIdx, b: NodeIdx) {
-        assert!(self.is_valid(a));
-        assert!(self.is_valid(b));
-        assert_ne!(self.get_root(a), self.get_root(b));
+        debug_assert!(self.is_valid(a));
+        debug_assert!(self.is_valid(b));
+        debug_assert_ne!(self.get_root(a), self.get_root(b));
 
-        assert_ne!(a, b);
+        debug_assert_ne!(a, b);
 
         let mut update_adj = |x, y| -> (Option<NodeIdx>, Option<NodeIdx>, Option<NodeIdx>) {
             let Node { parent, left, right, .. } = self[x];
@@ -415,8 +415,8 @@ impl<Data> Forest<Data> {
     }
 
     pub fn replace(&mut self, index: NodeIdx, replace_by: NodeIdx) {
-        assert!(self.is_valid(index));
-        assert!(self.is_valid(replace_by));
+        debug_assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(replace_by));
         assert_ne!(index, replace_by);
         debug_assert!(!self.ancestors(index).any(|a| a == replace_by));
 
@@ -425,8 +425,8 @@ impl<Data> Forest<Data> {
     }
 
     pub fn move_to(&mut self, index: NodeIdx, new_parent: NodeIdx) {
-        assert!(self.is_valid(index));
-        assert!(self.is_valid(new_parent));
+        debug_assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(new_parent));
         assert_ne!(index, new_parent);
 
         self.detach(index);
@@ -434,8 +434,8 @@ impl<Data> Forest<Data> {
     }
 
     pub fn move_to_before(&mut self, index: NodeIdx, target: NodeIdx) {
-        assert!(self.is_valid(index));
-        assert!(self.is_valid(target));
+        debug_assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(target));
         assert!(!self[target].is_root());
         assert_ne!(index, target);
         debug_assert!(!self.ancestors(target).any(|a| a == index));
@@ -459,8 +459,8 @@ impl<Data> Forest<Data> {
     }
 
     pub fn move_to_after(&mut self, index: NodeIdx, target: NodeIdx) {
-        assert!(self.is_valid(index));
-        assert!(self.is_valid(target));
+        debug_assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(target));
         assert!(!self[target].is_root());
         debug_assert!(!self.ancestors(target).any(|a| a == index));
 
@@ -479,22 +479,22 @@ impl<Data> Forest<Data> {
     }
 
     pub fn make_first_child(&mut self, index: NodeIdx) {
-        assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(index));
 
         if let Some(parent) = self[index].parent {
             let first_child = self[parent].first_child.expect("parent node must have a child");
             if first_child != index {
-                assert!(!self[index].is_root());
-                assert!(!self[index].is_first_child());
-                assert_eq!(self[first_child].parent, Some(parent));
+                debug_assert!(!self[index].is_root());
+                debug_assert!(!self[index].is_first_child());
+                debug_assert_eq!(self[first_child].parent, Some(parent));
                 self.move_to_before(index, first_child);
             }
         }
     }
 
     pub fn add_children_from(&mut self, index: NodeIdx, target: NodeIdx) {
-        assert!(self.is_valid(index));
-        assert!(self.is_valid(target));
+        debug_assert!(self.is_valid(index));
+        debug_assert!(self.is_valid(target));
         debug_assert!(!self.ancestors(index).any(|a| a == target));
 
         if index == target { return; }
@@ -521,8 +521,8 @@ impl<Data> Forest<Data> {
     }
 
     pub fn replace_by_children(&mut self, index: NodeIdx) {
-        assert!(self.is_valid(index));
-        assert!(!self[index].is_root());
+        debug_assert!(self.is_valid(index));
+        debug_assert!(!self[index].is_root());
 
         let mut child = self[index].first_child;
         while let Some(child_idx) = child {
