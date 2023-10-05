@@ -9,8 +9,10 @@ bash algorithms/miz23-md-cpp-sys/init.sh
 
 
 ```shell
-cargo run --bin miz23-md-rs
-cargo run --bin miz23-md-cpp
+cargo test --lib miz23-md-rs
+cargo test --lib miz23-md-cpp
+cargo bench --lib hippodrome
+cargo run --bin hippodrome
 cargo run --bin playground
 ```
 
