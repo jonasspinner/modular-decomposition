@@ -1,12 +1,10 @@
 #include <fstream>
 #include <iostream>
 #include <numeric>
+#include <memory>
+#include <cstdint>
 
 #include "modular/MDTree.hpp"
-#include "readwrite/edge_list.hpp"
-#include "readwrite/pace_2023.hpp"
-
-#include <stdio.h>
 
 extern "C" {
 struct Edge {
