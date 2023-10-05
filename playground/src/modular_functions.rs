@@ -1,4 +1,5 @@
 use petgraph::{Direction};
+use petgraph::adj::DefaultIx;
 use petgraph::graph::IndexType;
 use petgraph::prelude::{DiGraph, NodeIndex, UnGraph};
 use petgraph::visit::Dfs;
@@ -6,16 +7,16 @@ use common::modular_decomposition::MDNodeKind;
 use miz23_md_cpp;
 
 
-struct MDTree<Ix: IndexType> {
-    md_tree: DiGraph<MDNodeKind, (), Ix>,
+struct MDTree {
+    md_tree: DiGraph<MDNodeKind, ()>,
 }
 
-impl<Ix: IndexType> MDTree<Ix> {
-    fn new<N, E>(graph: &UnGraph<N, E, Ix>) -> Self {
-        Self { md_tree: miz23_md_cpp::modular_decomposition(&graph) }
+impl MDTree {
+    fn new<N, E>(graph: &UnGraph<N, E>) -> Self {
+        Self { md_tree: miz23_md_cpp::modular_decomposition(graph) }
     }
 
-    fn ancestors(&self, mut x: NodeIndex<Ix>) -> Vec<NodeIndex<Ix>> {
+    fn ancestors(&self, mut x: NodeIndex) -> Vec<NodeIndex> {
         let mut result = vec![x];
         while let Some(parent) = self.md_tree.neighbors_directed(x, Direction::Incoming).next() {
             result.push(parent);
@@ -41,7 +42,7 @@ impl<Ix: IndexType> MDTree<Ix> {
         }
     }
 
-    fn minimal_strong_module(&self, x: NodeIndex<Ix>, y: NodeIndex<Ix>) -> NodeIndex<Ix> {
+    fn minimal_strong_module(&self, x: NodeIndex, y: NodeIndex) -> NodeIndex {
         // the minimal strong module containing two vertices x and y is denoted by m(x, y),
 
         let a = self.md_tree.node_indices().find(|i| self.md_tree[*i] == MDNodeKind::Vertex(x.index())).unwrap();
@@ -49,8 +50,8 @@ impl<Ix: IndexType> MDTree<Ix> {
 
         if a == b { return a; }
 
-        let mut a_ancestors = self.ancestors(a);
-        let mut b_ancestors = self.ancestors(b);
+        let a_ancestors = self.ancestors(a);
+        let b_ancestors = self.ancestors(b);
 
         let last = Self::last_common_index(&a_ancestors, &b_ancestors).unwrap();
         assert_eq!(a_ancestors[last], b_ancestors[last]);
@@ -58,24 +59,18 @@ impl<Ix: IndexType> MDTree<Ix> {
         a_ancestors[last]
     }
 
-    fn vertices(&self, x: NodeIndex<Ix>) -> Vec<NodeIndex<Ix>> {
-        match self.md_tree[x] {
-            MDNodeKind::Vertex(u) => { return vec![NodeIndex::new(u)]}
-            _ => {}
-        }
+    fn vertices(&self, x: NodeIndex) -> Vec<NodeIndex> {
+        if let MDNodeKind::Vertex(u) = self.md_tree[x] { return vec![NodeIndex::new(u)]; }
         let mut dfs = Dfs::new(&self.md_tree, x);
         let mut module = vec![];
         while let Some(c) = dfs.next(&self.md_tree) {
-            match self.md_tree[c] {
-                MDNodeKind::Vertex(u) => { module.push(NodeIndex::new(u)) }
-                _ => {}
-            }
+            if let MDNodeKind::Vertex(u) = self.md_tree[c] { module.push(NodeIndex::new(u)) }
         }
         module.sort();
         module
     }
 
-    fn maximal_strong_module(&self, x: NodeIndex<Ix>, y: NodeIndex<Ix>) -> NodeIndex<Ix> {
+    fn maximal_strong_module(&self, x: NodeIndex, y: NodeIndex) -> NodeIndex {
         // the maximal strong module containing x but not y, for any two different vertices x, y of G, is denoted by M(x, y).
 
         assert_ne!(x, y);
@@ -84,8 +79,8 @@ impl<Ix: IndexType> MDTree<Ix> {
         let b = self.md_tree.node_indices().find(|i| self.md_tree[*i] == MDNodeKind::Vertex(y.index())).unwrap();
 
 
-        let mut a_ancestors = self.ancestors(a);
-        let mut b_ancestors = self.ancestors(b);
+        let a_ancestors = self.ancestors(a);
+        let b_ancestors = self.ancestors(b);
 
         let last = Self::last_common_index(&a_ancestors, &b_ancestors).unwrap();
         assert_eq!(a_ancestors[last], b_ancestors[last]);
@@ -93,12 +88,12 @@ impl<Ix: IndexType> MDTree<Ix> {
         a_ancestors[last + 1]
     }
 
-    fn v_modular_partition(v: NodeIndex<Ix>) -> Vec<Vec<NodeIndex<Ix>>> {
+    fn v_modular_partition(&self, _v: NodeIndex) -> Vec<Vec<NodeIndex>> {
         // M(G, v) = {v} u { M | M is a maximal module not containing v }
         todo!()
     }
 
-    fn spine(v: NodeIndex<Ix>) -> DiGraph<MDNodeKind, (), Ix> {
+    fn spine(&self, _v: NodeIndex) -> DiGraph<MDNodeKind, ()> {
         // spine(G, v) = MD(G/M(G, v))
 
         //DiGraph::<MDNodeKind, (), Ix>::new()
@@ -108,7 +103,6 @@ impl<Ix: IndexType> MDTree<Ix> {
 
 
 mod test {
-    use petgraph::visit::NodeCount;
     use common::instances::ted08_test0;
     use super::*;
 
@@ -169,7 +163,7 @@ mod test {
         let md_tree = MDTree::new(&graph);
 
         #[allow(non_snake_case)]
-        let M = |x, y| {
+            let M = |x, y| {
             let x = NodeIndex::new(x);
             let y = NodeIndex::new(y);
             md_tree.vertices(md_tree.maximal_strong_module(x, y)).iter().map(|i| i.index()).collect::<Vec<_>>()
@@ -193,5 +187,24 @@ mod test {
         assert_eq!(M(13, 14), [13]);
         assert_eq!(M(13, 12), [13, 14]);
         assert_eq!(M(14, 12), [13, 14]);
+    }
+
+    #[test]
+    fn v_modular_partition_test() {
+        let graph = ted08_test0();
+        let md_tree = MDTree::new(&graph);
+
+        let mut partition = md_tree.v_modular_partition(NodeIndex::new(16));
+        partition.sort();
+        assert_eq!(partition, [vec![16], vec![14, 15], vec![10, 11, 12], vec![13], vec![17], vec![8, 9], vec![7], vec![6], vec![0, 1, 2, 3, 4, 5]].iter().map(|v| v.iter().map(|&i| NodeIndex::<DefaultIx>::new(i as _)).collect::<Vec<_>>()).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn spine_test() {
+        let graph = ted08_test0();
+        let md_tree = MDTree::new(&graph);
+
+        let _s = md_tree.spine(NodeIndex::new(3));
+        todo!()
     }
 }
