@@ -5,7 +5,7 @@ MIZ23_DIR="${SCRIPT_DIR}/extern"
 
 if [ ! -d "${MIZ23_DIR}" ]
 then
-  git clone git@github.com:mogproject/twinwidth-2023.git "${MIZ23_DIR}"
+  git clone git@github.com:TheoryInPractice/hydraprime.git "${MIZ23_DIR}"
 fi
 
 FILES=(\
@@ -55,5 +55,5 @@ for f in "${FILES[@]}"; do
 done
 
 cd "${SCRIPT_DIR}" || exit
-git apply "patch-1.patch"
+# patch -p1 "patch-1.patch"
 
