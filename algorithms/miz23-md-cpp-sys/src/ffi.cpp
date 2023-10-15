@@ -12,7 +12,7 @@ struct Edge {
     int v;
 };
 
-enum NodeKind {
+enum NodeKind : int {
     Prime = 0,
     Series = 1,
     Parallel = 2,

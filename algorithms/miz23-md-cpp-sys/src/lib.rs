@@ -13,20 +13,21 @@ pub mod ffi {
         fn from((u, v): (V, V)) -> Self { Self { u: u.into(), v: v.into() } }
     }
 
-    #[repr(C)]
-    #[derive(Debug, Clone, Eq, PartialEq)]
-    pub enum NodeKind {
-        Prime = 0,
-        Series = 1,
-        Parallel = 2,
-        Vertex = 3,
-        Removed = 4,
+    #[non_exhaustive]
+    pub struct NodeKind;
+
+    impl NodeKind {
+        pub const PRIME: c_int = 0;
+        pub const SERIES: c_int = 1;
+        pub const PARALLEL: c_int = 2;
+        pub const VERTEX: c_int = 3;
+        pub const REMOVED: c_int = 4;
     }
 
     #[repr(C)]
     #[derive(Debug, Clone, Eq, PartialEq)]
     pub struct Node {
-        pub kind: NodeKind,
+        pub kind: c_int,
         pub vertex: c_int,
         pub parent: c_int,
         pub vertices_begin: c_int,
@@ -35,7 +36,7 @@ pub mod ffi {
 
     impl Default for Node {
         fn default() -> Self {
-            Node { kind: NodeKind::Removed, vertex: -1, parent: -1, vertices_begin: -1, vertices_end: -1 }
+            Node { kind: NodeKind::REMOVED, vertex: -1, parent: -1, vertices_begin: -1, vertices_end: -1 }
         }
     }
 

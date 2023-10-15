@@ -22,7 +22,7 @@ fn main() {
         .file("src/util/util.cpp")
         .file("src/ffi.cpp")
         .warnings(false)
-        .compile("libmiz23.a");
+        .compile("miz23");
     println!("cargo:rerun-if-changed=src/ffi.cpp");
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-changed=build.rs");

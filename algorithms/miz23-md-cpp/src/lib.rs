@@ -8,13 +8,19 @@ use petgraph::prelude::NodeIndex;
 use petgraph::visit::EdgeRef;
 use common::modular_decomposition::MDNodeKind;
 
-fn convert_to_node_kind(node: &ffi::Node) -> Result<MDNodeKind, ()> {
+enum NodeKindConversion {
+    Removed,
+    OutOfRange,
+}
+
+fn convert_to_node_kind(node: &ffi::Node) -> Result<MDNodeKind, NodeKindConversion> {
     match node.kind {
-        ffi::NodeKind::Prime => { Ok(MDNodeKind::Prime) }
-        ffi::NodeKind::Series => { Ok(MDNodeKind::Series) }
-        ffi::NodeKind::Parallel => { Ok(MDNodeKind::Parallel) }
-        ffi::NodeKind::Vertex => { Ok(MDNodeKind::Vertex(node.vertex as _)) }
-        ffi::NodeKind::Removed => { Err(()) }
+        ffi::NodeKind::PRIME => { Ok(MDNodeKind::Prime) }
+        ffi::NodeKind::SERIES => { Ok(MDNodeKind::Series) }
+        ffi::NodeKind::PARALLEL => { Ok(MDNodeKind::Parallel) }
+        ffi::NodeKind::VERTEX => { Ok(MDNodeKind::Vertex(node.vertex as _)) }
+        ffi::NodeKind::REMOVED => Err(NodeKindConversion::Removed),
+        _ => { Err(NodeKindConversion::OutOfRange) }
     }
 }
 
@@ -83,20 +89,22 @@ impl Computed {
         };
         assert_eq!(status, 0);
 
-        assert!(zip(&nodes, &vertices).all(|(a, b)| a.vertex == *b));
-        assert!(nodes.iter().all(|node| node.kind != ffi::NodeKind::Removed));
+        debug_assert!(zip(&nodes, &vertices).all(|(a, b)| a.vertex == *b));
+        debug_assert!(nodes.iter().all(|node| node.kind != ffi::NodeKind::REMOVED));
 
         let mut md_tree = DiGraph::<_, ()>::with_capacity(nodes.len(), nodes.len().saturating_sub(1));
 
         for node in &nodes {
-            if let Ok(kind) = convert_to_node_kind(node) {
-                md_tree.add_node(kind);
+            match convert_to_node_kind(node) {
+                Ok(kind) => { md_tree.add_node(kind); }
+                Err(NodeKindConversion::Removed) => { panic!("node was removed"); }
+                Err(NodeKindConversion::OutOfRange) => { panic!("node kind value is not valid"); }
             }
         }
 
         let edges = nodes.iter().enumerate()
             .filter_map(|(idx, node)| {
-                if node.kind != ffi::NodeKind::Removed && node.parent >= 0 {
+                if convert_to_node_kind(node).is_ok() && node.parent >= 0 {
                     Some((NodeIndex::new(node.parent as usize), NodeIndex::new(idx)))
                 } else { None }
             });
