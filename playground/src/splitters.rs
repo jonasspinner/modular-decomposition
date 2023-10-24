@@ -33,7 +33,7 @@ mod hashset {
         let mut union = start.clone();
         let mut intersection = start;
 
-        while let Some(u) = iter.next() {
+        for u in iter {
             union.extend(graph.neighbors(u));
             intersection = graph.neighbors(u).filter(|v| intersection.contains(v)).collect();
         }
@@ -45,7 +45,7 @@ mod counting {
     use std::iter::FusedIterator;
     use petgraph::graph::{IndexType, NodeIndex, UnGraph};
 
-    pub(crate) fn splitters<N, E, Ix, S>(graph: &UnGraph<N, E, Ix>, set: S, counts: &mut [u32], nodes: &mut Vec<NodeIndex<Ix>>)
+    pub fn splitters<N, E, Ix, S>(graph: &UnGraph<N, E, Ix>, set: S, counts: &mut [u32], nodes: &mut Vec<NodeIndex<Ix>>)
         where Ix: IndexType,
               S: IntoIterator,
               S::Item: Into<NodeIndex<Ix>>,
@@ -76,17 +76,17 @@ mod counting {
     }
 
     #[derive(Default)]
-    pub(crate) struct CountingSplitters<Ix: IndexType> {
+    pub struct CountingSplitters<Ix: IndexType> {
         counts: Vec<u32>,
         nodes: Vec<NodeIndex<Ix>>,
     }
 
     impl<Ix: IndexType> CountingSplitters<Ix> {
-        pub(crate) fn new() -> Self {
+        pub fn new() -> Self {
             Self::default()
         }
 
-        pub(crate) fn splitters<'a, N, E, S>(&'a mut self, graph: &UnGraph<N, E, Ix>, set: S) -> impl Iterator<Item=NodeIndex<Ix>> + 'a
+        pub fn splitters<'a, N, E, S>(&'a mut self, graph: &UnGraph<N, E, Ix>, set: S) -> impl Iterator<Item=NodeIndex<Ix>> + 'a
             where S: IntoIterator,
                   S::Item: Into<NodeIndex<Ix>>,
         {
