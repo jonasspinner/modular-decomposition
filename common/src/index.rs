@@ -1,3 +1,17 @@
+use std::fmt::Debug;
+use std::hash::Hash;
+
+pub trait IndexType:
+From<u32> + From<usize> +
+Into<u32> + Into<usize> +
+Copy + Eq + Hash + Debug + Ord
+{
+    fn new(x: usize) -> Self;
+    fn index(&self) -> usize;
+    fn invalid() -> Self;
+    fn is_valid(&self) -> bool { self != &Self::invalid() }
+}
+
 #[macro_export]
 macro_rules! make_index {
     ($vis:vis $name:ident) => {
@@ -8,24 +22,46 @@ macro_rules! make_index {
             Hash,
             Eq,
             PartialEq,
+            Ord,
+            PartialOrd,
         )]
         $vis struct $name(u32);
 
         impl $name {
             #[inline(always)]
-            fn new(x: usize) -> Self {
+            $vis fn new(x: usize) -> Self {
                 debug_assert!(x < u32::MAX as usize);
                 Self(x as u32)
             }
 
             #[inline(always)]
-            fn index(&self) -> usize { self.0 as usize }
+            $vis fn index(&self) -> usize { self.0 as usize }
 
             #[inline(always)]
-            fn invalid() -> Self { Self(u32::MAX) }
+            $vis fn invalid() -> Self { Self(u32::MAX) }
 
             #[inline(always)]
-            fn is_valid(&self) -> bool { self.0 < u32::MAX }
+            $vis fn is_valid(&self) -> bool { self.0 < u32::MAX }
+        }
+
+        impl common::index::IndexType for $name {
+            #[inline(always)]
+            fn new(x: usize) -> Self { Self::new(x) }
+
+            #[inline(always)]
+            fn index(&self) -> usize { self.index() }
+
+            #[inline(always)]
+            fn invalid() -> Self { Self::invalid() }
+
+            #[inline(always)]
+            fn is_valid(&self) -> bool { self.is_valid() }
+        }
+
+        impl ::std::default::Default for $name {
+            fn default() -> Self {
+                Self::invalid()
+            }
         }
 
         impl ::std::convert::From<usize> for $name {
