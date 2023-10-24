@@ -54,8 +54,20 @@ fn main() {
         let md1 = result.finalize();
 
 
+        let start = Instant::now();
+        let result = ms00::modular_decomposition(&graph);
+        let t2 = start.elapsed();
+
+
         assert_eq!(canonicalize(&md0), canonicalize(&md1));
-        println!("{}     Rust {:8} μs     C++ {:8} μs     {:3.7}", path.file_name().and_then(OsStr::to_str).unwrap(), t0.as_micros(), t1.as_micros(), (t0.as_nanos() as f64 / t1.as_nanos()  as f64));
+
+        let fastest_time = min(min(t0.as_nanos(), t1.as_nanos()), t2.as_nanos()) as f64;
+
+        println!("{}     Rust {:8} μs {:3.2}    C++ {:8} μs {:3.2}    MS00 {:8} μs {:3.2}",
+                 path.file_name().and_then(OsStr::to_str).unwrap(),
+                 t0.as_micros(), (t0.as_nanos() as f64 / fastest_time),
+                 t1.as_micros(), (t1.as_nanos() as f64 / fastest_time),
+                 t2.as_micros(), (t2.as_nanos() as f64 / fastest_time));
     }
 
     let graph = common::io::read_pace2023("hippodrome/instances/pace2023/exact_001.gr").unwrap();

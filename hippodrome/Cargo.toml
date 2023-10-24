@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 miz23-md-cpp = { path = "../algorithms/miz23-md-cpp" }
 miz23-md-rs = { path = "../algorithms/miz23-md-rs" }
+ms00 = { path = "../algorithms/ms00" }
 common =  { path = "../common" }
 petgraph = "0.6.3"
 
