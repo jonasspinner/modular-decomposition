@@ -95,23 +95,27 @@ pub(crate) fn ovp<const collect_removed_edges: bool>(graph: &mut Graph, p: SubPa
     //println!("partition: {:?}  {} nodes,  {} parts", p, partition.nodes(&p).len(), p.part_indices(partition).count());
     //println!("partition: {:?}", p.part_indices(partition).map(|part| partition.elements(part).map(|i| i.index() as u32).collect::<Vec<_>>()).collect::<Vec<_>>());
 
-    match number_of_parts(&p, partition) {
-        NumParts::Zero => { panic!(); }
-        NumParts::One => { return; }
-        NumParts::AtLeastTwo => {}
+    let mut queue = vec![p];
+
+    while let Some(p) = queue.pop() {
+        match number_of_parts(&p, partition) {
+            NumParts::Zero => { panic!(); }
+            NumParts::One => { continue; }
+            NumParts::AtLeastTwo => {}
+        }
+
+        debug_assert!(p.part_indices(partition).count() >= 2);
+
+        //let num_removed_edges_before = removed.len();
+        let (q, q_prime) = split::<collect_removed_edges>(graph, p, partition, removed);
+
+        //println!("e'      = {:?}", removed[num_removed_edges_before..].iter().map(|(u, v)| (u.index(), v.index())).collect::<Vec<_>>());
+        //println!("q       = {:?}", q.part_indices(partition).map(|i| partition.elements(i).map(|j| j.index()).collect::<Vec<_>>()).collect::<Vec<_>>());
+        //println!("q_prime = {:?}", q_prime.part_indices(partition).map(|i| partition.elements(i).map(|j| j.index()).collect::<Vec<_>>()).collect::<Vec<_>>());
+
+        queue.push(q_prime);
+        queue.push(q);
     }
-
-    assert!(p.part_indices(partition).count() >= 2);
-
-    //let num_removed_edges_before = removed.len();
-    let (q, q_prime) = split::<collect_removed_edges>(graph, p, partition, removed);
-
-    //println!("e'      = {:?}", removed[num_removed_edges_before..].iter().map(|(u, v)| (u.index(), v.index())).collect::<Vec<_>>());
-    //println!("q       = {:?}", q.part_indices(partition).map(|i| partition.elements(i).map(|j| j.index()).collect::<Vec<_>>()).collect::<Vec<_>>());
-    //println!("q_prime = {:?}", q_prime.part_indices(partition).map(|i| partition.elements(i).map(|j| j.index()).collect::<Vec<_>>()).collect::<Vec<_>>());
-
-    ovp::<collect_removed_edges>(graph, q, partition, removed);
-    ovp::<collect_removed_edges>(graph, q_prime, partition, removed);
 }
 
 
