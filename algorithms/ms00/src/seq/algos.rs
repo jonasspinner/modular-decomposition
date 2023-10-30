@@ -70,7 +70,7 @@ fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<Tre
 
     trace!("rop:partition:0 {:?}", to_vecs(&p.clone(), partition));
 
-    ovp::<false>(graph, p.clone(), partition, &mut removed);
+    ovp::<false>(graph, partition, &mut removed);
 
     trace!("rop:partition:1 {:?}", to_vecs(&p.clone(), partition));
     trace!("rop:removed:len {}", removed.len());
@@ -101,7 +101,7 @@ fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Vec<TreeNode>, current: Tre
 
     partition.refine_forward([v]);
     let mut graph_clone = graph.clone();
-    ovp::<false>(&mut graph_clone, p.clone(), &mut partition, &mut Vec::new());
+    ovp::<false>(&mut graph_clone, &mut partition, &mut Vec::new());
 
     //graph.restore_removed_edges(); FIXME
 
@@ -144,7 +144,7 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut 
 
 
     let p = p.singleton(partition, v);
-    ovp::<true>(graph, p.clone(), partition, &mut removed);
+    ovp::<true>(graph, partition, &mut removed);
 
 
     let mut new_part_ids = HashMap::new();

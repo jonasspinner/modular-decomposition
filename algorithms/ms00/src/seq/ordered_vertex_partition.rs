@@ -91,11 +91,11 @@ fn number_of_parts(p: &SubPartition, partition: &Partition) -> NumParts {
     NumParts::AtLeastTwo
 }
 
-pub(crate) fn ovp<const collect_removed_edges: bool>(graph: &mut Graph, p: SubPartition, partition: &mut Partition, removed: &mut Vec<(NodeIndex, NodeIndex)>) {
+pub(crate) fn ovp<const collect_removed_edges: bool>(graph: &mut Graph, partition: &mut Partition, removed: &mut Vec<(NodeIndex, NodeIndex)>) {
     //println!("partition: {:?}  {} nodes,  {} parts", p, partition.nodes(&p).len(), p.part_indices(partition).count());
     //println!("partition: {:?}", p.part_indices(partition).map(|part| partition.elements(part).map(|i| i.index() as u32).collect::<Vec<_>>()).collect::<Vec<_>>());
 
-    let mut queue = vec![p];
+    let mut queue = vec![SubPartition::new(partition)];
 
     while let Some(p) = queue.pop() {
         match number_of_parts(&p, partition) {
@@ -135,10 +135,10 @@ mod test {
         let mut partition = Partition::new(graph.node_count());
         partition.refine_forward([6_u32]);
 
-        let p = partition.full_sub_partition();
         let mut removed = vec![];
-        super::ovp::<true>(&mut graph, p.clone(), &mut partition, &mut removed);
+        super::ovp::<true>(&mut graph, &mut partition, &mut removed);
 
+        let p = partition.full_sub_partition();
         println!("{:?}", to_vecs(&p, &partition));
         println!("removed: {:?}.map(|(u,v)| (NodeIndex::new(u), NodeIndex::new(v)));", removed.iter().map(|(u, v)| (u.index(), v.index())).collect::<Vec<_>>());
 
@@ -167,10 +167,10 @@ mod test {
             let mut partition = Partition::new(graph.node_count());
             partition.refine_forward([0_u32]);
 
-            let p = partition.full_sub_partition();
             let mut removed = vec![];
-            super::ovp::<false>(&mut graph, p.clone(), &mut partition, &mut removed);
+            super::ovp::<false>(&mut graph, &mut partition, &mut removed);
 
+            let p = partition.full_sub_partition();
             for part in p.part_indices(&partition) {
                 let elements: Vec<_> = partition.elements(part).collect();
                 assert_eq!(splitters(&original_graph, elements.as_slice()).count(), 0);
