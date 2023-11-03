@@ -3,8 +3,7 @@ use common::make_index;
 use crate::seq::algos::Kind::{Parallel, Prime, Series, UnderConstruction};
 use crate::seq::graph::{Graph, NodeIndex};
 use crate::seq::ordered_vertex_partition::ovp;
-use crate::seq::partition::{Partition, SubPartition, Node, Part};
-use crate::seq::testing::to_vecs;
+use crate::seq::partition::{Partition, Part};
 use crate::trace;
 
 fn rop_find_w(graph: &mut Graph, p: &Part, partition: &mut Partition) -> NodeIndex {
@@ -26,7 +25,7 @@ fn rop_find_w(graph: &mut Graph, p: &Part, partition: &mut Partition) -> NodeInd
 
 make_index!(pub(crate) TreeNodeIndex);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum Kind {
     Prime,
     Series,
@@ -47,6 +46,25 @@ impl Default for TreeNode {
     }
 }
 
+fn determine_node_kind(xs: &[Part], num_edges: usize) -> Kind {
+    let mut num_all_inter_part_edges = 0;
+    'outer: for (i, x) in xs.iter().enumerate() {
+        for y in &xs[i + 1..] {
+            num_all_inter_part_edges += x.len() * y.len();
+            if num_all_inter_part_edges > num_edges { break 'outer; }
+        }
+    }
+    trace!("determine_node_kind  0 <= {} <= {}", num_edges, num_all_inter_part_edges);
+    assert!(num_edges <= num_all_inter_part_edges);
+    if num_edges == num_all_inter_part_edges {
+        Series
+    } else if num_edges == 0 {
+        Parallel
+    } else {
+        Prime
+    }
+}
+
 fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
     // if G has an isolated vertex then let w be that vertex
     // else let w be the highest numbered vertex
@@ -63,24 +81,20 @@ fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<Tre
         return;
     }
 
-    let mut removed = vec![];
-
     let w = rop_find_w(graph, &p, partition);
     let p = p.singleton(partition, w);
 
     trace!("rop:partition:0 {:?}", to_vecs(&p.clone(), partition));
 
-    ovp::<false>(graph, partition, &mut removed);
+    let mut num_edges = 0;
+    ovp(graph, partition, |e| { num_edges += e.len() });
 
     trace!("rop:partition:1 {:?}", to_vecs(&p.clone(), partition));
-    trace!("rop:removed:len {}", removed.len());
+    trace!("rop:removed:len {}", num_edges);
 
     let xs: Vec<_> = p.parts(partition).collect();
     trace!("rop:parts:len {}", xs.len());
-    let series_case = xs.len() * (xs.len() - 1) / 2;
-    let kind = if removed.len() == series_case {
-        Series
-    } else if removed.is_empty() { Parallel } else { Prime };
+    let kind = determine_node_kind(&xs, num_edges);
     trace!("rop:kind {:?}", kind);
     tree[current.index()].kind = kind;
     for x in xs {
@@ -95,15 +109,13 @@ fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Vec<TreeNode>, current: Tre
     // P := OVP(G, ({v}, V(G) - {v});
     // number the vertices of G in order of their appearance in P
     // return ROP(G).
-    ;
     let mut partition = Partition::new(graph.node_count());
-    let p = SubPartition::new(&partition);
 
     partition.refine_forward([v]);
     let mut graph_clone = graph.clone();
-    ovp::<false>(&mut graph_clone, &mut partition, &mut Vec::new());
+    ovp(&mut graph_clone, &mut partition, |_| {});
 
-    //graph.restore_removed_edges(); FIXME
+    //graph.restore_removed_edges(); // FIXME
 
     trace!("chain:partition {:?}", to_vecs(&p.clone(), &partition));
 
@@ -127,6 +139,7 @@ fn collect_leaves(tree: &[TreeNode], root: TreeNodeIndex) -> Vec<(TreeNodeIndex,
 }
 
 pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
+    //println!("modular_decomposition:0 {} {} {}", graph.node_count(), p.start().index(), p.len());
     trace!("modular_decomposition:parts:0  {:?}", to_vecs(&p.clone().into(), partition));
     // Let v be the lowest-numbered vertex of G
     // if G has only one vertex then return v
@@ -136,6 +149,8 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut 
     // return the composition of T' and {T_Y : Y in P(G,v) }
     let mut removed = vec![];
 
+    if graph.node_count() == 0 { return; }
+
     let v = p.nodes_raw(partition).iter().min_by_key(|n| n.label).unwrap().node;
     if p.len() == 1 {
         tree[current.index()].kind = Kind::Vertex(v);
@@ -144,16 +159,16 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut 
 
 
     let p = p.singleton(partition, v);
-    ovp::<true>(graph, partition, &mut removed);
+    ovp(graph, partition, |e| { removed.extend(e.iter().map(|&(u, v, _)| (u, v))) });
 
 
     let mut new_part_ids = HashMap::new();
     let mut ys_ = vec![];
-    let mut i = NodeIndex::new(0);
+    let mut n_quotient = NodeIndex::new(0);
     for part in p.part_indices(partition) {
-        new_part_ids.insert(part, i);
+        new_part_ids.insert(part, n_quotient);
         ys_.push((partition.part_by_index(part), TreeNodeIndex::invalid()));
-        i = (u32::from(i) + 1).into();
+        n_quotient = (u32::from(n_quotient) + 1).into();
     }
 
     for (u, v) in &mut removed {
@@ -163,7 +178,7 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut 
     removed.sort();
     removed.dedup();
 
-    let mut quotient = Graph::from_edges(i.index(), removed);
+    let mut quotient = Graph::from_edges(n_quotient.index(), removed);
     let v_q = *new_part_ids.get(&partition.part_by_node(v)).unwrap();
 
     chain(&mut quotient, v_q, tree, current);
@@ -184,8 +199,8 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut 
 }
 
 
+#[cfg(test)]
 mod test {
-    use std::slice::SliceIndex;
     use crate::seq::algos::{chain, Kind, TreeNode, TreeNodeIndex};
     use crate::seq::graph::{Graph, NodeIndex};
     use crate::seq::partition::{Part, Partition};
@@ -194,7 +209,6 @@ mod test {
     #[test]
     fn modular_decomposition() {
         let mut graph = ted08_test0_graph();
-        let original_graph = graph.clone();
 
         let mut partition = Partition::new(graph.node_count());
         let p = Part::new(&partition);
