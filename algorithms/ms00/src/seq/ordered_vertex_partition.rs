@@ -2,6 +2,7 @@ use std::ops::Sub;
 use std::slice::Iter;
 use crate::seq::graph::{EdgeIndex, Graph, NodeIndex};
 use crate::seq::partition::{Dir, divide, PartIndex, Partition, SubPartition};
+use crate::trace;
 
 fn crossing_edges(graph: &mut Graph, x: PartIndex, partition: &Partition) -> Vec<(NodeIndex, NodeIndex, EdgeIndex)> {
     let mut e = vec![];
@@ -50,30 +51,32 @@ fn group_by<'a, T, K, F>(elements: &'a mut [T], f: F) -> impl Iterator<Item=(K, 
 
 //     assert!(edges.iter().all(|(_, _, i)| i.is_valid()));
 //     println!("{:?}", edges.iter().map(|(u, v, _)| (u.index(), v.index())).collect::<Vec<_>>());
-fn split<const collect_removed_edges: bool>(graph: &mut Graph, p: SubPartition, partition: &mut Partition, removed: &mut Vec<(NodeIndex, NodeIndex)>) -> (SubPartition, SubPartition) {
+fn split<F>(graph: &mut Graph, p: SubPartition, partition: &mut Partition, f: &mut F) -> (SubPartition, SubPartition)
+    where F: FnMut(&[(NodeIndex, NodeIndex, EdgeIndex)])
+{
     let (x, q, q_prime, dir) = divide(p, partition);
 
-    //println!("split: {:?} {:?} {:?} {:?}", x.index(), q, q_prime, dir);
+    //trace!("split: {:?} {:?} {:?} {:?}", x.index(), q, q_prime, dir);
 
     let mut edges = crossing_edges(graph, x, partition);
 
-    //println!("edges: {:?}", edges.iter().map(|&(u,v,_)| (u.index(), v.index())).collect::<Vec<_>>());
-
-    if collect_removed_edges {
-        removed.extend(edges.iter().map(|&(u, v, _)| (u, v)));
-    }
+    trace!("split:edges {:?}", edges.iter().map(|&(u,v,_)| (u.index(), v.index())).collect::<Vec<_>>());
 
     graph.remove_edges(edges.iter().map(|e| e.2));
 
-    for (u, pivots) in group_by(&mut edges, |e| { e.0 }) {
+    for (_u, pivots) in group_by(&mut edges, |e| { e.0 }) {
         //println!("refine {} {:?} {:?}", u.index(), dir, pivots.iter().map(|e| e.1.index()).collect::<Vec<_>>());
         partition.refine(dir, pivots.iter().map(|e| e.1));
     }
 
-    for (u, pivots) in group_by(&mut edges, |e| { e.1 }) {
+    for (_u, pivots) in group_by(&mut edges, |e| { e.1 }) {
         //println!("refine {} {:?} {:?}", u.index(), dir.reversed(), pivots.iter().map(|e| e.0.index()).collect::<Vec<_>>());
         partition.refine(dir.reversed(), pivots.iter().map(|e| e.0));
     }
+
+    //edges.sort_by_key(|(u, v, _)| { (partition.part_by_node(*u), partition.part_by_node(*v)) });
+    //edges.dedup_by_key(|(u, v, _)| { (partition.part_by_node(*u), partition.part_by_node(*v)) });
+    f(&edges);
 
     (q, q_prime)
 }
@@ -91,7 +94,9 @@ fn number_of_parts(p: &SubPartition, partition: &Partition) -> NumParts {
     NumParts::AtLeastTwo
 }
 
-pub(crate) fn ovp<const collect_removed_edges: bool>(graph: &mut Graph, partition: &mut Partition, removed: &mut Vec<(NodeIndex, NodeIndex)>) {
+pub(crate) fn ovp<F>(graph: &mut Graph, partition: &mut Partition, mut f: F)
+    where F: FnMut(&[(NodeIndex, NodeIndex, EdgeIndex)])
+{
     //println!("partition: {:?}  {} nodes,  {} parts", p, partition.nodes(&p).len(), p.part_indices(partition).count());
     //println!("partition: {:?}", p.part_indices(partition).map(|part| partition.elements(part).map(|i| i.index() as u32).collect::<Vec<_>>()).collect::<Vec<_>>());
 
@@ -107,7 +112,7 @@ pub(crate) fn ovp<const collect_removed_edges: bool>(graph: &mut Graph, partitio
         debug_assert!(p.part_indices(partition).count() >= 2);
 
         //let num_removed_edges_before = removed.len();
-        let (q, q_prime) = split::<collect_removed_edges>(graph, p, partition, removed);
+        let (q, q_prime) = split(graph, p, partition, &mut f);
 
         //println!("e'      = {:?}", removed[num_removed_edges_before..].iter().map(|(u, v)| (u.index(), v.index())).collect::<Vec<_>>());
         //println!("q       = {:?}", q.part_indices(partition).map(|i| partition.elements(i).map(|j| j.index()).collect::<Vec<_>>()).collect::<Vec<_>>());
@@ -136,7 +141,7 @@ mod test {
         partition.refine_forward([6_u32]);
 
         let mut removed = vec![];
-        super::ovp::<true>(&mut graph, &mut partition, &mut removed);
+        super::ovp(&mut graph, &mut partition, |e| { removed.extend(e.iter().map(|&(u, v, _)| (u, v))) });
 
         let p = partition.full_sub_partition();
         println!("{:?}", to_vecs(&p, &partition));
@@ -167,8 +172,7 @@ mod test {
             let mut partition = Partition::new(graph.node_count());
             partition.refine_forward([0_u32]);
 
-            let mut removed = vec![];
-            super::ovp::<false>(&mut graph, &mut partition, &mut removed);
+            super::ovp(&mut graph, &mut partition, |_| {});
 
             let p = partition.full_sub_partition();
             for part in p.part_indices(&partition) {

@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::iter::FusedIterator;
 use std::ops::Index;
 use common::make_index;
@@ -59,7 +58,7 @@ impl Graph {
             nodes[b.index()].end.0 += 1;
         }
 
-        if n >= 4 { println!("n={:8} m={:12}", n, m); }
+        //if n >= 4 { println!("n={:8} m={:12}", n, m); }
 
         Self { nodes, edges }
     }
@@ -88,13 +87,14 @@ impl Graph {
             let Node { end: mut u_end, start: u_start } = self.nodes[u.index()];
             let Node { end: mut v_end, start: v_start } = self.nodes[v.index()];
 
-            let print_adj = |g: &Self, x: NodeIndex, label: &str| {
-                return;
+            let print_adj = |_g: &Self, _x: NodeIndex, _label: &str| {
+                /*
                 let Node { end: mut x_end, start: x_start } = g.nodes[x.index()];
                 println!("  {}={} [{}..{}] [{}..{}] [{}..]", label, x.index(), x_start.index(), x_end.index(), x_end.index(), g.nodes[x.index() + 1].start.index(), g.nodes[x.index() + 1].start.index());
                 println!("    {:?}", (x_start.index()..g.nodes[x.index() + 1].start.index()).collect::<Vec<_>>());
                 println!("    {:?}", g.edges[x_start.index()..g.nodes[x.index() + 1].start.index()].iter().map(|e| e.head.index()).collect::<Vec<_>>());
                 println!("    {:?}", (x_start.index()..g.nodes[x.index() + 1].start.index()).map(|e| if g.edges[e].deleted { 1 } else { 0 }).collect::<Vec<_>>());
+                */
             };
             //println!("before:");
             print_adj(self, u, "u");
@@ -259,6 +259,7 @@ impl Graph {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     use petgraph::visit::{EdgeRef, IntoEdgeReferences, NodeCount};

@@ -268,9 +268,10 @@ impl Graph {
 }
 
 
+#[cfg(test)]
 mod test {
     use petgraph::graph::UnGraph;
-    use petgraph::visit::{EdgeRef, NodeCount};
+    use petgraph::visit::EdgeRef;
     use common::instances::ted08_test0;
     use common::set::FastResetBitSet;
     use crate::linked_list::graph::{Graph, NodeIndex};

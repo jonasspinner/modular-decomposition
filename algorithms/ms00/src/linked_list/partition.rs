@@ -1,4 +1,4 @@
-use std::iter::{from_fn, Map};
+use std::iter::from_fn;
 use std::slice::Iter;
 use common::linked_list::{concat, cut, CyclicLinkedList, CyclicLinkedListNode, elements, move_before};
 use common::make_index;
@@ -364,7 +364,7 @@ impl Partition {
 }
 
 impl PartIndex {
-    pub fn move_to_front(&self, a: NodeIndex, arena: &mut PartitionArena) {
+    pub fn move_to_front(&self, _a: NodeIndex, _arena: &mut PartitionArena) {
         todo!()
     }
     pub fn move_to_back(&self, a: NodeIndex, arena: &mut PartitionArena) {
@@ -477,10 +477,10 @@ fn split(graph: &mut Graph, x: PartIndex, p: Partition, arena: &mut PartitionAre
 
 fn partition(graph: &mut Graph, p: Partition, arena: &mut PartitionArena, set: &mut FastResetBitSet) -> Partition {
     println!("partition: {:?}", p.parts(arena).map(|part| part.elements(arena).map(|i| i.index() as u32).collect::<Vec<_>>()).collect::<Vec<_>>());
-    if p.parts(&arena).count() == 1 {
+    if p.parts(arena).count() == 1 {
         p
     } else {
-        let x = p.parts(&arena).next().unwrap();
+        let x = p.parts(arena).next().unwrap();
         let (q, q_prime) = split(graph, x, p, arena, set);
 
         let p1 = partition(graph, q, arena, set);
@@ -516,8 +516,7 @@ mod tests {
     use rand::seq::{IteratorRandom, SliceRandom};
     use common::instances::ted08_test0;
     use common::set::FastResetBitSet;
-    use crate::linked_list::graph::{EdgeIndex, Graph};
-    use crate::linked_list::partition;
+    use crate::linked_list::graph::Graph;
     use super::*;
 
 
@@ -597,12 +596,12 @@ mod tests {
         let l = 16;
         let m = 1024;
         let mut rng = rand::rngs::StdRng::seed_from_u64(0);
-        for i in 0..k {
+        for _i in 0..k {
             let size = rng.gen_range(1..m);
             let (mut arena, mut partition) = PartitionArena::new(size);
 
             let all: Vec<_> = (0..size).collect();
-            for j in 0..l {
+            for _j in 0..l {
                 let num_elements = rng.gen_range(0..size);
 
                 let mut pivots = all.iter().copied().choose_multiple(&mut rng, num_elements);
@@ -622,12 +621,12 @@ mod tests {
         let l = 16;
         let m = 1024;
         let mut rng = rand::rngs::StdRng::seed_from_u64(0);
-        for i in 0..k {
+        for _i in 0..k {
             let size = rng.gen_range(1..m);
             let (mut arena, mut partition) = PartitionArena::new(size);
 
             let all: Vec<_> = (0..size).collect();
-            for j in 0..l {
+            for _j in 0..l {
                 let num_elements = rng.gen_range(0..size);
 
                 let mut pivots = all.iter().copied().choose_multiple(&mut rng, num_elements);

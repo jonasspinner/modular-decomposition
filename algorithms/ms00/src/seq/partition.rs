@@ -1,6 +1,5 @@
 use std::iter::from_fn;
 use std::ops::{AddAssign, SubAssign};
-use std::slice::SliceIndex;
 use crate::seq::graph::NodeIndex;
 use common::make_index;
 
