@@ -98,10 +98,12 @@ pub fn elements<'a, L: CyclicLinkedList>(nodes: &'a [L::Node], list: &L) -> impl
 mod list {
     use super::*;
 
+    #[allow(dead_code)]
     pub fn concat<L: CyclicLinkedList>(nodes: &mut [L::Node], a: &L, b: &L) {
         super::concat(nodes, a.head(), b.head());
     }
 
+    #[allow(dead_code)]
     pub fn cut<L: CyclicLinkedList>(nodes: &mut [L::Node], list: &L, a: <<L as CyclicLinkedList>::Node as CyclicLinkedListNode>::Index) -> Option<<<L as CyclicLinkedList>::Node as CyclicLinkedListNode>::Index> {
         let head = list.head();
         let head = if head == a { nodes[head.index()].next() } else { head };
