@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "algorithms/kar19-rs",
     "algorithms/miz23-md-cpp-sys",
     "algorithms/miz23-md-cpp",
     "algorithms/miz23-md-rs",
