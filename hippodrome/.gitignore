@@ -1,2 +1,4 @@
 instances/
 *.zip
+*.dot
+*.png

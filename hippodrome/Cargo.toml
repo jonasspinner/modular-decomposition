@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+kar19-rs = { path = "../algorithms/kar19-rs" }
+lyt15-cpp-wrapper = { path = "../algorithms/lyt15-cpp-wrapper" }
 miz23-md-cpp = { path = "../algorithms/miz23-md-cpp" }
 miz23-md-rs = { path = "../algorithms/miz23-md-rs" }
 ms00 = { path = "../algorithms/ms00" }
