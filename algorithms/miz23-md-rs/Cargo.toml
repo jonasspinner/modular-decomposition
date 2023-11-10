@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 common = { path = "../../common" }
-petgraph = "0.6.3"
+petgraph.workspace = true
