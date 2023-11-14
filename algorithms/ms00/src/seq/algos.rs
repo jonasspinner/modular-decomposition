@@ -3,7 +3,8 @@ use common::make_index;
 use crate::seq::algos::Kind::{Parallel, Prime, Series, UnderConstruction};
 use crate::seq::graph::{Graph, NodeIndex};
 use crate::seq::ordered_vertex_partition::ovp;
-use crate::seq::partition::{Partition, Part};
+use crate::seq::partition::{Partition, Part, SubPartition};
+use crate::seq::testing::to_vecs;
 use crate::trace;
 
 fn rop_find_w(graph: &mut Graph, p: &Part, partition: &mut Partition) -> NodeIndex {
@@ -112,12 +113,11 @@ fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Vec<TreeNode>, current: Tre
     let mut partition = Partition::new(graph.node_count());
 
     partition.refine_forward([v]);
-    let mut graph_clone = graph.clone();
-    ovp(&mut graph_clone, &mut partition, |_| {});
+    ovp(graph, &mut partition, |_| {});
 
-    //graph.restore_removed_edges(); // FIXME
+    graph.restore_removed_edges();
 
-    trace!("chain:partition {:?}", to_vecs(&p.clone(), &partition));
+    trace!("chain:partition {:?}", to_vecs(&partition.full_sub_partition(), &partition));
 
     let p = partition.merge_all_parts();
 
@@ -136,6 +136,31 @@ fn collect_leaves(tree: &[TreeNode], root: TreeNodeIndex) -> Vec<(TreeNodeIndex,
         res.append(&mut collect_leaves(tree, child));
     }
     res
+}
+
+fn build_quotient(mut removed: Vec<(NodeIndex, NodeIndex)>,
+                  p: SubPartition, partition: &Partition,
+                  inner_vertex: NodeIndex) -> (Graph, NodeIndex, Vec<(Part, TreeNodeIndex)>) {
+    let mut new_part_ids = HashMap::new();
+    let mut ys = vec![];
+    let mut n_quotient = NodeIndex::new(0);
+    for part in p.part_indices(partition) {
+        new_part_ids.insert(part, n_quotient);
+        ys.push((partition.part_by_index(part), TreeNodeIndex::invalid()));
+        n_quotient = (u32::from(n_quotient) + 1).into();
+    }
+
+    let map = |x: NodeIndex| {
+        *new_part_ids.get(&partition.part_by_node(x)).unwrap()
+    };
+
+    for (u, v) in &mut removed {
+        *u = map(*u);
+        *v = map(*v);
+    }
+    removed.sort();
+    removed.dedup();
+    (Graph::from_edges(n_quotient.index(), removed), map(inner_vertex), ys)
 }
 
 pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
@@ -162,38 +187,20 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut 
     ovp(graph, partition, |e| { removed.extend(e.iter().map(|&(u, v, _)| (u, v))) });
 
 
-    let mut new_part_ids = HashMap::new();
-    let mut ys_ = vec![];
-    let mut n_quotient = NodeIndex::new(0);
-    for part in p.part_indices(partition) {
-        new_part_ids.insert(part, n_quotient);
-        ys_.push((partition.part_by_index(part), TreeNodeIndex::invalid()));
-        n_quotient = (u32::from(n_quotient) + 1).into();
-    }
-
-    for (u, v) in &mut removed {
-        *u = *new_part_ids.get(&partition.part_by_node(*u)).unwrap();
-        *v = *new_part_ids.get(&partition.part_by_node(*v)).unwrap();
-    }
-    removed.sort();
-    removed.dedup();
-
-    let mut quotient = Graph::from_edges(n_quotient.index(), removed);
-    let v_q = *new_part_ids.get(&partition.part_by_node(v)).unwrap();
+    let (mut quotient, v_q, mut ys) = build_quotient(removed, p.clone(), partition, v);
 
     chain(&mut quotient, v_q, tree, current);
 
     for (j, v) in collect_leaves(tree, current) {
         assert!(matches!(tree[j.index()].kind, Kind::Vertex(_)));
-        ys_[v.index()].1 = j;
+        ys[v.index()].1 = j;
         tree[j.index()].kind = Kind::UnderConstruction;
     }
 
     trace!("modular_decomposition:parts:1 {:?}", ys_.iter().map(|(y, j)| (j.index(), y.nodes(partition).map(|u| u.index()).collect::<Vec<_>>())).collect::<Vec<_>>());
 
 
-    for (y, j) in ys_ {
-        assert!(y.len() < p.len());
+    for (y, j) in ys {
         modular_decomposition(graph, y, partition, tree, j);
     }
 }

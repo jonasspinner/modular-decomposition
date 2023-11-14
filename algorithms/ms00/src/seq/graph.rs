@@ -1,11 +1,27 @@
-use std::iter::FusedIterator;
-use std::ops::Index;
+use std::cmp::min;
+use std::iter::{FusedIterator, Step};
+use std::slice::SliceIndex;
 use common::make_index;
 
 
 
 make_index!(pub(crate) NodeIndex);
 make_index!(pub(crate) EdgeIndex);
+
+
+impl Step for EdgeIndex {
+    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+        end.index().checked_sub(start.index())
+    }
+
+    fn forward_checked(start: Self, count: usize) -> Option<Self> {
+        Some(EdgeIndex::new(start.index() + count))
+    }
+
+    fn backward_checked(start: Self, count: usize) -> Option<Self> {
+        start.index().checked_sub(count).map(|e| e.into())
+    }
+}
 
 #[derive(Default, Debug, Copy, Clone)]
 struct Node {
@@ -28,9 +44,6 @@ pub(crate) struct Graph {
 }
 
 impl Graph {
-    pub(crate) fn node_count(&self) -> usize {
-        self.nodes.len().saturating_sub(1)
-    }
     pub(crate) fn from_edges<I>(n: usize, iterable: I) -> Self
         where
             I: IntoIterator<Item=(NodeIndex, NodeIndex)> + Clone,
@@ -63,122 +76,74 @@ impl Graph {
         Self { nodes, edges }
     }
 
-    pub(crate) fn remove_edges<I>(&mut self, iterator: I)
+    pub(crate) fn node_count(&self) -> usize {
+        self.nodes.len().saturating_sub(1)
+    }
+
+    pub(crate) fn node_indices(&self) -> impl Iterator<Item=NodeIndex> {
+        (0..self.node_count()).map(NodeIndex::new)
+    }
+
+    pub(crate) fn edge_references(&self) -> impl Iterator<Item=(NodeIndex, NodeIndex, EdgeIndex)> + '_ {
+        self.node_indices()
+            .flat_map(|u|
+                self.incident_edges(u)
+                    .map(move |(v, e)| (u, v, e)))
+    }
+
+    pub(crate) fn remove_edges<I>(&mut self, edges: I)
         where
             I: IntoIterator<Item=EdgeIndex> + Clone,
     {
-        let edges = iterator.clone().into_iter();
-        for uv in edges {
+        let move_edge = |x: NodeIndex, xy: EdgeIndex, nodes: &mut [Node], edges: &mut [Edge]| {
+            let Node { end, start } = nodes[x.index()];
+            let next_start = nodes[x.index() + 1].start;
+
+            if let Some(e) = edges[start.index()..end.index()]
+                .iter().rposition(|e| !e.deleted)
+                .map(|i| (start.index() + i).into()) {
+                if xy < e {
+                    let (a, b): (_, EdgeIndex) = (xy, e);
+                    let a_twin = edges[a.index()].twin;
+                    let b_twin = edges[b.index()].twin;
+                    edges.swap(a.index(), b.index());
+                    edges[a_twin.index()].twin = b;
+                    edges[b_twin.index()].twin = a;
+                    nodes[x.index()].end = b;
+                } else {
+                    assert_ne!(e, xy);
+                    let e = EdgeIndex::new(e.index() + 1);
+                    assert!(e < next_start);
+                    assert!(edges[e.index()].deleted);
+                    nodes[x.index()].end = e;
+                }
+            } else {
+                nodes[x.index()].end = start;
+            }
+        };
+
+        for uv in edges.clone() {
             let vu = self.edges[uv.index()].twin;
+            assert!(!self.edges[uv.index()].deleted);
+            assert!(!self.edges[vu.index()].deleted);
+
             self.edges[uv.index()].deleted = true;
             self.edges[vu.index()].deleted = true;
         }
 
-        for e in iterator {
-            let (uv, vu) = (e, self.edges[e.index()].twin);
-            let v = self.edges[uv.index()].head;
+        for uv in edges {
+            let Edge { head: v, twin: vu, .. } = self.edges[uv.index()];
             let u = self.edges[vu.index()].head;
-            //println!("({}, {}) {}", u.index(), v.index(), uv.index());
-            //println!("({}, {}) {}", v.index(), u.index(), vu.index());
 
-            assert!(self.edges[uv.index()].deleted);
-            assert!(self.edges[vu.index()].deleted);
-
-            let Node { end: mut u_end, start: u_start } = self.nodes[u.index()];
-            let Node { end: mut v_end, start: v_start } = self.nodes[v.index()];
-
-            let print_adj = |_g: &Self, _x: NodeIndex, _label: &str| {
-                /*
-                let Node { end: mut x_end, start: x_start } = g.nodes[x.index()];
-                println!("  {}={} [{}..{}] [{}..{}] [{}..]", label, x.index(), x_start.index(), x_end.index(), x_end.index(), g.nodes[x.index() + 1].start.index(), g.nodes[x.index() + 1].start.index());
-                println!("    {:?}", (x_start.index()..g.nodes[x.index() + 1].start.index()).collect::<Vec<_>>());
-                println!("    {:?}", g.edges[x_start.index()..g.nodes[x.index() + 1].start.index()].iter().map(|e| e.head.index()).collect::<Vec<_>>());
-                println!("    {:?}", (x_start.index()..g.nodes[x.index() + 1].start.index()).map(|e| if g.edges[e].deleted { 1 } else { 0 }).collect::<Vec<_>>());
-                */
-            };
-            //println!("before:");
-            print_adj(self, u, "u");
-            print_adj(self, v, "v");
-
-            //println!("{} [{}..{}] {:?}", u.index(), u_start.index(), u_end.index(), (u_start.index()..u_end.index()).map(|i| removed.contains(&EdgeIndex::new(i))).collect::<Vec<_>>());
-
-            if u_end != u_start {
-                u_end.0 = u_end.0.wrapping_sub(1);
-            }
-            loop {
-                if u_end == u_start || !self.edges[u_end.index()].deleted { break; }
-                u_end.0 = u_end.0.wrapping_sub(1);
-            }
-            //println!("uv [{} .. {} .. {}] {} {}", u_start.index(), uv.index(), u_end.index(), uv.index(), u_end.index());
-            if u_end != u_start && uv.index() < u_end.index() {
-                assert!(!self.edges[u_end.index()].deleted);
-                //println!("swapping {} and {}", uv.index(), u_end.index());
-                assert!(self.nodes[u.index()].start.0 <= u_end.0 && u_end.0 < self.nodes[u.index() + 1].start.0);
-
-                self.edges.swap(uv.index(), u_end.index());
-
-                let uv_twin = self.edges[uv.index()].twin;
-                self.edges[uv_twin.index()].twin = uv;
-
-                let u_end_twin = self.edges[u_end.index()].twin;
-                self.edges[u_end_twin.index()].twin = u_end;
-            }
-            if !self.edges[u_end.index()].deleted { u_end.0 += 1; }
-            for e in u_end.0..self.nodes[u.index()].end.0 {
-                let e = EdgeIndex::new(e as usize);
-                assert!(self.edges[e.index()].deleted);
-            }
-            self.nodes[u.index()].end = u_end;
-
-            assert_eq!(self.edges[self.edges[uv.index()].twin.index()].twin, uv);
-            assert_eq!(self.edges[self.edges[u_end.index()].twin.index()].twin, u_end);
-
-            if v_end != v_start {
-                v_end.0 = v_end.0.wrapping_sub(1);
-            }
-            loop {
-                if v_end == v_start || !self.edges[v_end.index()].deleted { break; }
-                v_end.0 = v_end.0.wrapping_sub(1);
-            }
-            //println!("vu [{} .. {} .. {}] {} {}", v_start.index(), vu.index(), v_end.index(), vu.index(), v_end.index());
-            if v_end != v_start && vu.index() < v_end.index() {
-                assert!(!self.edges[v_end.index()].deleted);
-                //println!("swapping {} and {}", vu.index(), v_end.index());
-                assert!(self.nodes[v.index()].start.0 <= v_end.0 && v_end.0 < self.nodes[v.index() + 1].start.0);
-
-                self.edges.swap(vu.index(), v_end.index());
-
-                let vu_twin = self.edges[vu.index()].twin;
-                self.edges[vu_twin.index()].twin = vu;
-
-                let v_end_twin = self.edges[v_end.index()].twin;
-                self.edges[v_end_twin.index()].twin = v_end;
-            }
-            if !self.edges[v_end.index()].deleted { v_end.0 += 1; }
-            for e in v_end.0..self.nodes[v.index()].end.0 {
-                let e = EdgeIndex::new(e as usize);
-                assert!(self.edges[e.index()].deleted);
-            }
-            self.nodes[v.index()].end = v_end;
-
-            assert_eq!(self.edges[self.edges[uv.index()].twin.index()].twin, uv);
-            assert_eq!(self.edges[self.edges[vu.index()].twin.index()].twin, vu);
-            if u_end.index() < self.edges.len() {
-                assert_eq!(self.edges[self.edges[u_end.index()].twin.index()].twin, u_end);
-            }
-            if v_end.index() < self.edges.len() {
-                assert_eq!(self.edges[self.edges[v_end.index()].twin.index()].twin, v_end);
-            }
-
-
-            //println!("after:");
-            print_adj(self, u, "u");
-            print_adj(self, v, "v");
+            move_edge(u, uv, &mut self.nodes, &mut self.edges);
+            move_edge(v, vu, &mut self.nodes, &mut self.edges);
         }
     }
 
     pub(crate) fn restore_removed_edges(&mut self) {
         for i in 0..self.nodes.len() - 1 {
+            let (a, b) = (self.nodes[i].end.index(), self.nodes[i + 1].start.index());
+            for e in &mut self.edges[a..b] { e.deleted = false; }
             self.nodes[i].end = self.nodes[i + 1].start;
         }
     }
@@ -188,28 +153,26 @@ impl Graph {
         self.edges[start.index()..end.index()].iter().position(|e| e.head == v).map(|pos| EdgeIndex::new(start.index() + pos))
     }
 
+    #[cfg(test)]
     fn check(&self) -> bool {
         for u in 0..self.nodes.len() - 1 {
             if !(self.nodes[u].start.0 <= self.nodes[u].end.0 && self.nodes[u].end.0 <= self.nodes[u + 1].start.0) {
                 panic!("u={}  [{} {}] [{} ..]", u, self.nodes[u].start.0, self.nodes[u].end.0, self.nodes[u + 1].start.0);
-                return false;
             }
             for (v, e) in self.incident_edges(u.into()) {
                 if !(self.nodes[u].start <= e && e < self.nodes[u].end) {
                     panic!("u={}  {} e={} {}", u, self.nodes[u].start.0, e, self.nodes[u].end.0);
-                    return false;
                 }
                 let v = v.index();
                 let e_twin = self.edges[e.index()].twin;
                 if !(self.nodes[v].start <= e_twin && e_twin < self.nodes[v].end) {
                     panic!("v={}  {} e={} {}", v, self.nodes[v].start.0, e_twin, self.nodes[v].end.0);
-                    return false;
                 }
             }
         }
         for e in 0..self.edges.len() {
             let e = EdgeIndex::new(e);
-            if !(self.edges[self.edges[e.index()].twin.index()].twin == e) {
+            if self.edges[self.edges[e.index()].twin.index()].twin != e {
                 return false;
             }
         }
@@ -237,6 +200,7 @@ impl<'edges> Iterator for IncidentEdges<'edges> {
         (self.next != self.end).then(|| {
             let e = self.next;
             self.next.0 += 1;
+            assert!(!self.edges[e.index()].deleted);
             (self.edges[e.index()].head, e)
         })
     }

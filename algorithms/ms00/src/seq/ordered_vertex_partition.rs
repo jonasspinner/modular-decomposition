@@ -1,7 +1,5 @@
-use std::ops::Sub;
-use std::slice::Iter;
 use crate::seq::graph::{EdgeIndex, Graph, NodeIndex};
-use crate::seq::partition::{Dir, divide, PartIndex, Partition, SubPartition};
+use crate::seq::partition::{divide, PartIndex, Partition, SubPartition};
 use crate::trace;
 
 fn crossing_edges(graph: &mut Graph, x: PartIndex, partition: &Partition) -> Vec<(NodeIndex, NodeIndex, EdgeIndex)> {
@@ -124,6 +122,7 @@ pub(crate) fn ovp<F>(graph: &mut Graph, partition: &mut Partition, mut f: F)
 }
 
 
+#[cfg(test)]
 mod test {
     use std::path::Path;
     use petgraph::visit::EdgeRef;

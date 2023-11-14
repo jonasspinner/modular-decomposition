@@ -1,3 +1,4 @@
+#![feature(step_trait)]
 #![allow(dead_code)]
 
 use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
@@ -93,6 +94,7 @@ pub fn modular_decomposition<N, E>(graph: &UnGraph<N, E>) -> DiGraph<MDNodeKind,
 }
 
 
+#[cfg(test)]
 mod test {
     use std::path::Path;
     use petgraph::dot::{Config, Dot};
