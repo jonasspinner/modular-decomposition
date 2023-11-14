@@ -4,6 +4,7 @@ use crate::seq::algos::Kind::{Parallel, Prime, Series, UnderConstruction};
 use crate::seq::graph::{Graph, NodeIndex};
 use crate::seq::ordered_vertex_partition::ovp;
 use crate::seq::partition::{Partition, Part, SubPartition};
+#[allow(unused)]
 use crate::seq::testing::to_vecs;
 use crate::trace;
 

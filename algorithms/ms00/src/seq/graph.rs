@@ -1,6 +1,4 @@
-use std::cmp::min;
 use std::iter::{FusedIterator, Step};
-use std::slice::SliceIndex;
 use common::make_index;
 
 
