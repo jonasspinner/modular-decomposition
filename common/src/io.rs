@@ -8,8 +8,10 @@ use std::num::ParseIntError;
 use std::path::Path;
 use clap::ValueEnum;
 use petgraph::adj::DefaultIx;
-use petgraph::{Graph, Undirected};
-use petgraph::graph::{NodeIndex, UnGraph};
+use petgraph::{Direction, Graph, Undirected};
+use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
+use petgraph::visit::EdgeRef;
+use crate::modular_decomposition::MDNodeKind;
 
 
 #[derive(Debug, Clone, Eq, PartialEq, ValueEnum)]
@@ -237,7 +239,94 @@ pub fn write_metis<P>(path: P, graph: &UnGraph<(), ()>) -> Result<(), WriteMetis
             writeln!(file)?;
         }
     }
+    file.flush()?;
     Ok(())
+}
+
+
+#[derive(Debug)]
+pub enum WriteMDTreeError {
+    IoError(io::Error),
+}
+
+impl From<io::Error> for WriteMDTreeError { fn from(value: io::Error) -> Self { WriteMDTreeError::IoError(value) } }
+
+impl Display for WriteMDTreeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self { WriteMDTreeError::IoError(err) => { write!(f, "{}", err) } }
+    }
+}
+
+impl Error for WriteMDTreeError {}
+
+pub fn write_md_tree_adj<W: Write>(out: &mut W, md: &DiGraph<MDNodeKind, ()>) -> Result<(), WriteMDTreeError> {
+    writeln!(out, "%% modular decomposition tree")?;
+    writeln!(out, "%% 1st line:   n m fmt")?;
+    writeln!(out, "%% ff lines:   weight children...")?;
+    writeln!(out, "%%   weight:   0 => Prime, 1 => Series, 2 => Parallel, 3 + v => v")?;
+    if let Some(root) = md.externals(Direction::Incoming).next() {
+        writeln!(out, "% root {}", root.index())?;
+    }
+    writeln!(out, "{} {} 10", md.node_count(), md.edge_count())?;
+    for u in md.node_indices() {
+        // write!(out, "{} ", u.index())?;
+        let w = match md[u] {
+            MDNodeKind::Prime => { 0 }
+            MDNodeKind::Series => { 1 }
+            MDNodeKind::Parallel => { 2 }
+            MDNodeKind::Vertex(v) => { 3 + v }
+        };
+        write!(out, "{w}")?;
+        for e in md.edges_directed(u, Direction::Outgoing) {
+            write!(out, " {}", e.target().index())?;
+        }
+        writeln!(out)?;
+    }
+    out.flush()?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use petgraph::graph::DiGraph;
+    use crate::io::write_md_tree_adj;
+    use crate::modular_decomposition::MDNodeKind;
+
+    #[test]
+    fn small_tree() {
+        let mut md = DiGraph::<MDNodeKind, ()>::new();
+        let nodes = [
+            MDNodeKind::Prime, MDNodeKind::Parallel, MDNodeKind::Series,
+            MDNodeKind::Vertex(0), MDNodeKind::Vertex(1), MDNodeKind::Vertex(2),
+            MDNodeKind::Vertex(3), MDNodeKind::Vertex(4), MDNodeKind::Vertex(5),
+            MDNodeKind::Vertex(6)
+        ].map(|w| md.add_node(w));
+        for (i, j) in [(0, 1), (0, 2), (1, 3), (1, 4), (2, 5), (2, 6), (0, 7), (0, 8), (0, 9)] {
+            md.add_edge(nodes[i], nodes[j], ());
+        }
+
+        let mut out = Vec::new();
+        write_md_tree_adj(&mut out, &md).unwrap();
+        let out = String::from_utf8(out).unwrap();
+        let expected = r"%% modular decomposition tree
+%% 1st line:   n m fmt
+%% ff lines:   weight children...
+%%   weight:   0 => Prime, 1 => Series, 2 => Parallel, 3 + v => v
+% root 0
+10 9 10
+0 9 8 7 2 1
+2 4 3
+1 6 5
+3
+4
+5
+6
+7
+8
+9
+";
+        assert_eq!(out, expected);
+    }
 }
 
 #[allow(dead_code)]
