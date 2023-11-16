@@ -45,9 +45,8 @@ fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<N
     trace!("compute_fact_perm_edges {}", alpha_list.len());
     let k = ps.len();
 
-    for i in 0..pivot_index {
-        fp_neighbors[i].clear();
-    }
+    fp_neighbors.iter_mut().for_each(|n| n.clear());
+
     let mut leaves = vec![vec![]; pivot_index];
 
     for i in 0..k {
@@ -85,8 +84,8 @@ fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<N
 fn compute_mu(_tree: &mut Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: usize, neighbors: &[Vec<VertexId>]) -> Vec<usize> {
     let mut mu: Vec<usize> = vec![0; ps.len()];
 
-    for i in 0..mu.len() {
-        mu[i] = if i < pivot_index { pivot_index } else { 0 };
+    for (i, m) in mu.iter_mut().enumerate() {
+        *m = if i < pivot_index { pivot_index } else { 0 };
     }
 
     for i in 0..pivot_index {
@@ -171,15 +170,13 @@ fn delineate(pivot_index: usize, lcocomp: &[bool], rcomp: &[bool], rlayer: &[boo
     let mut st = DelineateState { lb: pivot_index as isize - 1, rb: pivot_index + 1, left_last_in: pivot_index, right_last_in: pivot_index };
     let k = lcocomp.len();
     while 0 <= st.lb && st.rb < k {
-        if !compose_series(lcocomp, mu, &mut st) {
-            if !compose_parallel(rcomp, rlayer, mu, &mut st) {
-                if compose_prime(lcocomp, rcomp, rlayer, mu, &mut st) {
-                    st.left_last_in = 0;
-                    st.right_last_in = k - 1;
-                    st.lb = st.left_last_in as isize - 1;
-                    st.rb = st.right_last_in + 1;
-                }
-            }
+        if !compose_series(lcocomp, mu, &mut st)
+            && !compose_parallel(rcomp, rlayer, mu, &mut st)
+            && compose_prime(lcocomp, rcomp, rlayer, mu, &mut st) {
+            st.left_last_in = 0;
+            st.right_last_in = k - 1;
+            st.lb = st.left_last_in as isize - 1;
+            st.rb = st.right_last_in + 1;
         }
         ret.push((st.left_last_in, st.right_last_in));
     }
@@ -204,7 +201,7 @@ fn assemble_tree(tree: &mut Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: 
         tree.move_to(last_module, new_module);
 
         let mut added_neighbors = false;
-        let mut added_non_neighbors= false;
+        let mut added_non_neighbors = false;
 
         while lb >= lbound as isize {
             added_neighbors = true;
@@ -223,7 +220,7 @@ fn assemble_tree(tree: &mut Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: 
         last_module = new_module;
     }
 
-    return last_module;
+    last_module
 }
 
 fn remove_degenerate_duplicates(tree: &mut Forest<MDComputeNode>, index: NodeIdx) {

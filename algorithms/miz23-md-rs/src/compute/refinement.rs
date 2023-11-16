@@ -34,10 +34,8 @@ mod set_up {
     }
 
     pub(crate) fn number_by_tree(tree: &mut Forest<MDComputeNode>, problem: NodeIdx) {
-        let mut tree_number = 0;
-        for c in tree.children(problem).collect::<Vec<_>>() {
-            for y in tree.get_dfs_reverse_preorder_nodes(c) { tree[y].data.tree_number = tree_number; }
-            tree_number += 1;
+        for (tree_number, c) in tree.children(problem).collect::<Vec<_>>().into_iter().enumerate() {
+            for y in tree.get_dfs_reverse_preorder_nodes(c) { tree[y].data.tree_number = tree_number as _; }
         }
     }
 }
@@ -105,13 +103,16 @@ mod marking_split_types {
     }
 
     pub(crate) fn get_max_subtrees(tree: &mut Forest<MDComputeNode>, leaves: &[NodeIdx]) -> Vec<NodeIdx> {
-        let mut full_charged : Vec<NodeIdx> = Vec::from(leaves);
+        let mut full_charged: Vec<NodeIdx> = Vec::from(leaves);
         let mut charged = vec![];
 
         let mut i = 0;
         while i < full_charged.len() {
             let x = full_charged[i];
-            if is_root_operator(tree, x) { i+=1; continue; }
+            if is_root_operator(tree, x) {
+                i += 1;
+                continue;
+            }
 
             let p = tree[x].parent.unwrap();
             if !tree[p].data.is_marked() { charged.push(p); }
@@ -128,13 +129,13 @@ mod marking_split_types {
             if !is_parent_fully_charged(tree, x) { ret.push(x); }
         }
         for x in charged { tree[x].data.clear_marks(); }
-        return ret;
+        ret
     }
 }
 
 mod group_sibling_nodes {
     use crate::compute::refinement::utilities::is_root_operator;
-    use crate::compute::{MDComputeNode, SplitDirection};
+    use crate::compute::MDComputeNode;
     use crate::compute::Operation;
     use crate::compute::SplitDirection::{Left, Right};
     use crate::forest::Forest;
@@ -181,7 +182,7 @@ mod group_sibling_nodes {
                     let next = tree[c].right;
                     tree.move_to(c, grouped_children);
 
-                    for st in [SplitDirection::Left, SplitDirection::Right] {
+                    for st in [Left, Right] {
                         if tree[c].data.is_split_marked(st) {
                             tree[p].data.decrement_num_split_children(st);
                             tree[grouped_children].data.increment_num_split_children(st);

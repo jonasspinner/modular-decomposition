@@ -44,7 +44,7 @@ impl MDTree {
             if sorted {
                 ret.sort();
             }
-            return ret;
+            ret
         })
     }
 

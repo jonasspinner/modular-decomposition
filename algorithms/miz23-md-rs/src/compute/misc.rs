@@ -24,7 +24,7 @@ pub(crate) fn remove_extra_components(tree: &mut Forest<MDComputeNode>, prob: No
         tree.remove(subprob);
     }
     trace!("return: {}", tree.to_string(ret));
-    return ret;
+    ret
 }
 
 pub(crate) fn remove_layers(tree: &mut Forest<MDComputeNode>, prob: NodeIdx) {
@@ -45,7 +45,7 @@ pub(crate) fn complete_alpha_lists(tree: &Forest<MDComputeNode>, alpha_list: &mu
     trace!("start: {}", tree.to_string(Some(prob)));
 
     for &v in leaves {
-        for a in alpha_list[v.idx()].iter().copied().collect::<Vec<_>>() {
+        for a in alpha_list[v.idx()].to_vec() {
             assert_ne!(a, v);
             alpha_list[a.idx()].push(v);
         }

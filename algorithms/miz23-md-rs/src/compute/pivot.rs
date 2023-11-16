@@ -8,7 +8,8 @@ fn is_pivot_layer(tree: &Forest<MDComputeNode>, index: NodeIdx) -> bool {
     if let Some(parent) = node.parent {
         if !tree.is_valid(parent) { return false; }
         let parent = &tree[parent];
-        return parent.data.is_problem_node() && Some(NodeIdx::from(parent.data.vertex.idx())) == node.first_child;
+        parent.data.is_problem_node() &&
+            Some(NodeIdx::from(parent.data.vertex.idx())) == node.first_child
     } else {
         false
     }
@@ -80,5 +81,5 @@ pub(crate) fn do_pivot(graph: &Graph, tree: &mut Forest<MDComputeNode>, alpha_li
 
     if tree[neighbor_problem].is_leaf() { tree.remove(neighbor_problem); }
 
-    return replacement;
+    replacement
 }

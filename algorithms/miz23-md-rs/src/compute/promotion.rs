@@ -29,18 +29,16 @@ fn promote_one_node(tree: &mut Forest<MDComputeNode>, index: NodeIdx, split_type
                     st.push((true, tree[nd].first_child.unwrap()));
                 }
             }
-        } else {
-            if tree[nd].is_leaf() && tree[nd].data.is_operation_node() {
-                tree.remove(nd);
-            } else if tree[nd].has_only_one_child() {
-                tree.replace_by_children(nd);
-                tree.remove(nd);
-            }
+        } else if tree[nd].is_leaf() && tree[nd].data.is_operation_node() {
+            tree.remove(nd);
+        } else if tree[nd].has_only_one_child() {
+            tree.replace_by_children(nd);
+            tree.remove(nd);
         }
     }
 }
 
-fn promote_one_direction(tree: &mut Forest<MDComputeNode>, index: NodeIdx, split_type : SplitDirection) {
+fn promote_one_direction(tree: &mut Forest<MDComputeNode>, index: NodeIdx, split_type: SplitDirection) {
     for c in tree.children(index).collect::<Vec<_>>() {
         promote_one_node(tree, c, split_type);
     }

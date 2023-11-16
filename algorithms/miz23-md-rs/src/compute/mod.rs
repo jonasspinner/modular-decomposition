@@ -174,14 +174,14 @@ pub(crate) fn compute(graph: &Graph) -> (Forest<MDComputeNode>, Option<NodeIdx>)
 
     let main_problem = tree.create_node(MDComputeNode::new_problem_node(false));
 
-    for idx in (0..graph.number_of_nodes()).rev().map(|i| NodeIdx::new(i)) {
+    for idx in (0..graph.number_of_nodes()).rev().map(NodeIdx::new) {
         tree.move_to(idx, main_problem);
     }
 
     let new_root = implementation::compute(graph, &mut tree, main_problem);
 
     trace!("result: {}", tree.to_string(Some(new_root)));
-    return (tree, Some(new_root));
+    (tree, Some(new_root))
 }
 
 mod implementation {
@@ -228,9 +228,9 @@ mod implementation {
                 let child = VertexId::from(child.idx());
 
                 if tree[current_problem].has_only_one_child() {
-                    process_neighbors(&graph, tree, &mut alpha_list, &mut visited, child, current_problem, None);
+                    process_neighbors(graph, tree, &mut alpha_list, &visited, child, current_problem, None);
                 } else {
-                    let pivoted = do_pivot(graph, tree, &mut alpha_list, &mut visited, current_problem, child);
+                    let pivoted = do_pivot(graph, tree, &mut alpha_list, &visited, current_problem, child);
 
                     current_problem_ = tree[pivoted].first_child;
                     continue;
