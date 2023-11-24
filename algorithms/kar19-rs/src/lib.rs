@@ -525,7 +525,8 @@ mod tests {
     fn it_works() {
         let graph = UnGraph::from_edges([(0, 1), (1, 2), (3, 4), (4, 5)]);
         let V = graph.node_indices().collect();
-        let _p = symgraph_factorizing_permutation(&graph, V);
+        let p = symgraph_factorizing_permutation(&graph, V);
+        println!("{:?}", d1(&p));
     }
 
     #[allow(non_snake_case)]
@@ -546,6 +547,23 @@ mod tests {
     #[test]
     fn pace2023_exact053_md() {
         let graph = common::io::read_pace2023("../../hippodrome/instances/pace2023/exact_053.gr").unwrap();
+        let _md = strong_module_tree(&graph);
+    }
+
+    #[test]
+    fn graph_10() {
+        let graph = UnGraph::<(), ()>::from_edges([
+            (0, 2), (0, 3), (0, 4),
+            (1, 2),
+            (2, 3), (2, 4), (2, 6),
+            (3, 4), (3, 5), (3, 6),
+            (4, 5), (4, 6),
+            (5, 6),
+            (6, 7), (6, 8), (6, 9),
+            (7, 8), (7, 9),
+            (8, 9)
+        ]);
+        // println!("{}", graph.edge_count());
         let _md = strong_module_tree(&graph);
     }
 }
