@@ -73,7 +73,7 @@ fn add_pivot(
     modules: &mut VecDeque<Vec<NodeIndex>>) {
     traceln!("add_pivot: {:?} {:?}", d1(&X), d1(&X_a));
     if pivots.contains(&X) {
-        pivots.push(X);
+        pivots.push(X_a);
     } else {
         let i = modules.iter().position(|Y| Y == &X);
         let (S, L) = smaller_larger(X, X_a);
