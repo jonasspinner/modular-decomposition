@@ -204,9 +204,7 @@ mod group_sibling_nodes {
     }
 }
 
-fn get_split_type(tree: &Forest<MDComputeNode>, index: NodeIdx, refiner: VertexId, pivot: VertexId) -> SplitDirection {
-    let pivot = From::from(pivot.idx());
-    let refiner = From::from(refiner.idx());
+fn get_split_type(tree: &Forest<MDComputeNode>, index: NodeIdx, refiner: NodeIdx, pivot: NodeIdx) -> SplitDirection {
     let pivot_tn = tree[pivot].data.tree_number;
     let refiner_tn = tree[refiner].data.tree_number;
     let current = tree[index].data.tree_number;
@@ -266,7 +264,7 @@ fn refine_one_node(tree: &mut Forest<MDComputeNode>, index: NodeIdx, split_type:
     }
 }
 
-fn refine_with(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], refiner: VertexId, pivot: VertexId) {
+fn refine_with(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], refiner: NodeIdx, pivot: NodeIdx) {
     let subtree_roots = get_max_subtrees(tree, &alpha_list[refiner.idx()]);
 
     let sibling_groups = group_sibling_nodes(tree, &subtree_roots);
@@ -290,7 +288,7 @@ pub(crate) fn refine(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx
     number_by_tree(tree, problem);
 
     for &v in leaves {
-        refine_with(tree, alpha_list, From::from(v.idx()), tree[problem].data.vertex);
+        refine_with(tree, alpha_list, v, tree[problem].data.vertex.idx().into());
     }
 }
 
