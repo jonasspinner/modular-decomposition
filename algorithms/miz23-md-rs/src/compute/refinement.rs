@@ -5,7 +5,6 @@ use crate::compute::refinement::marking_split_types::{add_split_mark, get_max_su
 use crate::compute::refinement::set_up::{number_by_comp, number_by_tree};
 use crate::compute::refinement::utilities::is_root_operator;
 use crate::forest::{Forest, NodeIdx};
-use crate::graph::VertexId;
 use crate::trace;
 
 mod set_up {

@@ -45,7 +45,9 @@ pub(crate) fn complete_alpha_lists(tree: &Forest<MDComputeNode>, alpha_list: &mu
     trace!("start: {}", tree.to_string(Some(prob)));
 
     for &v in leaves {
-        for a in alpha_list[v.idx()].to_vec() {
+        let n = alpha_list[v.idx()].len();
+        for i in 0..n {
+            let a = alpha_list[v.idx()][i];
             assert_ne!(a, v);
             alpha_list[a.idx()].push(v);
         }

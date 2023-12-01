@@ -189,12 +189,10 @@ fn assemble_tree(tree: &mut Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: 
     let mut rb = pivot_index + 1;
     let mut last_module = ps[pivot_index];
 
-    let len = boundaries.len();
     let mut i = 0;
 
     while 0 <= lb || rb < k {
-        let lbound = if i < len { boundaries[i].0 } else { 0 };
-        let rbound = if i < len { boundaries[i].1 } else { k - 1 };
+        let (lbound, rbound) = boundaries.get(i).cloned().unwrap_or((0, k - 1));
         i += 1;
 
         let new_module = tree.create_node(MDComputeNode::new_operation_node(Operation::Prime));
@@ -215,8 +213,13 @@ fn assemble_tree(tree: &mut Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: 
             rb += 1;
         }
 
-        tree[new_module].data.op_type = if added_neighbors && added_non_neighbors
-        { Operation::Prime } else if added_neighbors { Operation::Series } else { Operation::Parallel };
+        tree[new_module].data.op_type =
+            match (added_neighbors, added_non_neighbors) {
+                (true, true) => Operation::Prime,
+                (true, _) => Operation::Series,
+                _ => Operation::Parallel,
+            };
+
         last_module = new_module;
     }
 
