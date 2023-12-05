@@ -38,9 +38,39 @@ run.add("convert_pace2023",
             "input": "data/01-raw/pace2023/[[name]].gr",
             "output": "data/02-graphs/pace2023-[[name]]"
         },
-        creates_file="data/02-graphs/pace2023-[[name]]")
+        creates_file="[[output]]")
 pace2023_exact_names = [f"pace2023-{name}" for name in pace2023_exact_names]
 pace2023_heuristic_names = [f"pace2023-{name}" for name in pace2023_heuristic_names]
+
+#
+# generate
+#
+
+run.group("generate")
+run.add("generate_gnm",
+        "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
+        {
+            "n": [10000],
+            "m": list(range(5000, 50000 + 1, 5000)),
+            "seed": list(range(10)),
+            "name": "gnm_n=[[n]]-m=[[m]]-s=[[seed]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
+#
+# plot_graphs
+#
+
+run.group("plot_graphs")
+run.add("plot_graphs",
+        "python3 scripts/plot.py --input [[input]] --output [[output]] --n-max 1000",
+        {
+            "name": [path.name for path in Path("data/02-graphs").glob("*_*")],
+            "input": "data/02-graphs/[[name]]",
+            "output": "data/10-graph-plots/[[name]].png"
+        },
+        creates_file="[[output]]")
 
 #
 # graph_stats
@@ -48,21 +78,15 @@ pace2023_heuristic_names = [f"pace2023-{name}" for name in pace2023_heuristic_na
 
 run.group("graph_stats")
 
-
-def graph_stat_group(group_name):
-    names = [path.name for path in Path(f"data/02-graphs").glob(f"{group_name}_*")]
-    run.add(f"analyze_graph_{group_name}",
-            "python3 scripts/analyze.py graph --input [[input]]",
-            {
-                "name": names,
-                "input": "data/02-graphs/[[name]]"
-            },
-            stdout_file=f"data/03-graph-stats/{group_name}.csv",
-            header_command="python3 scripts/analyze.py graph --only-header")
-
-
-graph_stat_group("pace2023-exact")
-graph_stat_group("pace2023-heuristic")
+names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
+run.add(f"analyze_graphs",
+        "python3 scripts/analyze.py graph --input [[input]] > [[output]]",
+        {
+            "name": names,
+            "input": "data/02-graphs/[[name]]",
+            "output": "data/03-graph-stats/[[name]].graph.stats"
+        },
+        creates_file="[[output]]")
 
 #
 # experiments
@@ -70,16 +94,22 @@ graph_stat_group("pace2023-heuristic")
 
 run.group("experiments")
 
-names = list(sorted([path.name for path in Path(f"data/02-graphs").glob("*_*")]))
+names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
+algos = ["miz23-rust", "miz23-cpp", "ms00", "kar19-rust"]
+for algo in algos:
+    (Path("data/02-graphs") / algo).mkdir(exist_ok=True, parents=True)
+    (Path("data/04-algo-runs") / algo).mkdir(exist_ok=True, parents=True)
 run.add("md",
         "cargo run --bin md --release -- "
         "--algo [[algo]] --input-type metis "
-        "--input [[input]] --output [[output]]",
+        "--input [[input]] --output [[output]] --stats [[stats]]",
         {
-            "algo": ["miz23-rust"],
+            "algo": algos,
             "name": names,
+            "repetition": list(range(1)),
             "input": "data/02-graphs/[[name]]",
-            "output": "data/05-md-trees/[[algo]]/[[name]].md"
+            "output": "data/05-md-trees/[[algo]]/[[name]].md",
+            "stats": "data/04-algo-runs/[[algo]]/[[name]]_rep=[[repetition]].runstats",
         },
         creates_file="[[output]]")
 
@@ -89,20 +119,14 @@ run.add("md",
 
 run.group("md_tree_stats")
 
-
-def md_tree_stat_group(group_name):
-    names = list(sorted([path.name for path in Path(f"data/02-graphs").glob(f"{group_name}_*")]))
-    run.add(f"analyze_md_tree_{group_name}",
-            "python3 scripts/analyze.py tree --input [[input]]",
-            {
-                "name": names,
-                "input": "data/05-md-trees/miz23-rust/[[name]].md"
-            },
-            stdout_file=f"data/06-md-tree-stats/{group_name}.csv",
-            header_command="python3 scripts/analyze.py graph --only-header")
-
-
-md_tree_stat_group("pace2023-exact")
-md_tree_stat_group("pace2023-heuristic")
+names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
+run.add(f"analyze_md_trees",
+        "python3 scripts/analyze.py tree --input [[input]] > [[output]]",
+        {
+            "name": names,
+            "input": "data/05-md-trees/miz23-rust/[[name]].md",
+            "output": "data/06-md-tree-stats/[[name]].md.stats"
+        },
+        creates_file="[[output]]")
 
 run.run()
