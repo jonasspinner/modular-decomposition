@@ -1,169 +1,37 @@
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::collections::hash_map::RandomState;
+mod factorizing_permutation;
+
+use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
 use common::modular_decomposition::MDNodeKind;
+use tracing::{span, Level};
 
-
-#[macro_export]
-macro_rules! traceln {
-    ($($x:expr),*) => {
-        //println!($($x),*)
-    }
-}
 
 #[macro_export]
 macro_rules! trace {
     ($($x:expr),*) => {
-        //print!($($x),*)
+        tracing::trace!($($x),*)
     }
 }
-
-#[allow(non_snake_case)]
-fn symgraph_factorizing_permutation(graph: &UnGraph<(), ()>, V: Vec<NodeIndex>) -> Vec<NodeIndex> {
-    let mut P = vec![V];
-    let mut center = NodeIndex::new(0);
-    let mut pivots = vec![];
-    let mut modules = VecDeque::new();
-    let mut first_pivot = HashMap::<Vec<NodeIndex>, NodeIndex>::new();
-
-    partition_refinement(&mut P, &mut center, &mut pivots, &mut modules, &mut first_pivot, &graph);
-    P.iter().map(|part| part[0]).collect()
-}
-
-#[allow(non_snake_case)]
-fn smaller_larger(A: Vec<NodeIndex>, B: Vec<NodeIndex>) -> (Vec<NodeIndex>, Vec<NodeIndex>) {
-    if A.len() <= B.len() { (A, B) } else { (B, A) }
-}
-
-#[allow(non_snake_case)]
-fn refine(P: &mut Vec<Vec<NodeIndex>>,
-          S: HashSet<NodeIndex>,
-          x: NodeIndex,
-          center: &NodeIndex,
-          pivots: &mut Vec<Vec<NodeIndex>>,
-          modules: &mut VecDeque<Vec<NodeIndex>>) {
-    traceln!("refine: {} {:?}", x.index(), S.iter().map(|u| u.index()).collect::<Vec<_>>());
-    let mut i = 0_usize.wrapping_sub(1);
-    let mut between = false;
-    while i.wrapping_add(1) < P.len() {
-        i = i.wrapping_add(1);
-        let X = &P[i];
-        //traceln!("refine:X: {} {:?}", i, d1(&X));
-        if X.contains(&center) || X.contains(&x) {
-            between = !between;
-            continue;
-        }
-        let (X_a, X): (Vec<_>, Vec<_>) = X.iter().partition(|&y| S.contains(y));
-        if X_a.is_empty() || X.is_empty() { continue; }
-        traceln!("refine:P:0: {:?}", d2(&*P));
-        P[i] = X.clone();
-        P.insert(i + between as usize, X_a.clone());
-        traceln!("refine:P:1: {:?}", d2(&*P));
-        add_pivot(X, X_a, pivots, modules);
-        i += 1;
-    }
-}
-
-#[allow(non_snake_case)]
-fn add_pivot(
-    X: Vec<NodeIndex>,
-    X_a: Vec<NodeIndex>,
-    pivots: &mut Vec<Vec<NodeIndex>>,
-    modules: &mut VecDeque<Vec<NodeIndex>>) {
-    traceln!("add_pivot: {:?} {:?}", d1(&X), d1(&X_a));
-    if pivots.contains(&X) {
-        pivots.push(X_a);
-    } else {
-        let i = modules.iter().position(|Y| Y == &X);
-        let (S, L) = smaller_larger(X, X_a);
-        pivots.push(S);
-        if let Some(i) = i {
-            modules[i] = L;
-        } else {
-            modules.push_back(L);
-        }
-    }
-}
-
-#[allow(non_snake_case)]
-fn partition_refinement(
-    P: &mut Vec<Vec<NodeIndex>>,
-    center: &mut NodeIndex,
-    pivots: &mut Vec<Vec<NodeIndex>>,
-    modules: &mut VecDeque<Vec<NodeIndex>>,
-    first_pivot: &mut HashMap<Vec<NodeIndex>, NodeIndex>,
-    graph: &UnGraph<(), ()>) {
-    while init_partition(P, center, pivots, modules, first_pivot, graph) {
-        traceln!("P: {:?}", d2(&*P));
-        traceln!("pivots: {:?}", d2(&*pivots));
-        traceln!("modules: {:?}", d2(&*modules));
-        while let Some(E) = pivots.pop() {
-            let E_h: HashSet<_, RandomState> = HashSet::from_iter(E.clone());
-            for &x in &E {
-                let S = graph.neighbors(x).filter(|v| !E_h.contains(v)).collect();
-                refine(P, S, x, center, pivots, modules);
-            }
-        }
-    }
-}
-
-#[allow(non_snake_case)]
-fn splice(P: &mut Vec<Vec<NodeIndex>>, i: usize, A: Vec<NodeIndex>, x: NodeIndex, N: Vec<NodeIndex>) {
-    match (A.is_empty(), N.is_empty()) {
-        (true, true) => { P[i] = vec![x] }
-        (true, false) => {
-            P[i] = vec![x];
-            P.insert(i + 1, N)
-        }
-        (false, true) => {
-            P[i] = A;
-            P.insert(i + 1, vec![x]);
-        }
-        (false, false) => {
-            P[i] = A;
-            P.insert(i + 1, vec![x]);
-            P.insert(i + 2, N)
-        }
-    }
-}
-
-#[allow(non_snake_case)]
-fn init_partition(
-    P: &mut Vec<Vec<NodeIndex>>,
-    center: &mut NodeIndex,
-    pivots: &mut Vec<Vec<NodeIndex>>,
-    modules: &mut VecDeque<Vec<NodeIndex>>,
-    first_pivot: &mut HashMap<Vec<NodeIndex>, NodeIndex>,
-    graph: &UnGraph<(), ()>) -> bool {
-    if P.iter().all(|p| p.len() <= 1) { return false; }
-    if let Some(X) = modules.pop_front() {
-        let x = X[0];
-        pivots.push(vec![x]);
-        first_pivot.insert(X, x);
-    } else {
-        for (i, X) in P.iter().enumerate() {
-            if X.len() <= 1 { continue; }
-            let x = first_pivot.get(X).copied().unwrap_or(X[0]);
-            let adj: HashSet<_> = graph.neighbors(x).collect();
-            let (A, mut N): (Vec<_>, Vec<_>) = X.into_iter().partition(|&y| *y != x && adj.contains(y));
-            N.retain(|y| *y != x);
-            splice(P, i, A.clone(), x, N.clone());
-            let (S, L) = smaller_larger(A, N);
-            *center = x;
-            pivots.push(S);
-            modules.push_back(L);
-            break;
-        }
-    }
-    true
-}
-
 
 #[allow(non_snake_case)]
 fn strong_module_tree(graph: &UnGraph<(), ()>) -> StrongModuleTree {
-    let V = graph.node_indices().collect();
-    let p = symgraph_factorizing_permutation(graph, V);
+    let p = {
+        let _span_ = span!(Level::INFO, "factorizing_permutation").entered();
+
+        let p = factorizing_permutation::kar19::factorizing_permutation(graph);
+
+        //let mut state = playground::factorizing_permutation::v2::State::new(graph);
+        //state.partition_refinement();
+        //let p: Vec<_> = state.permutation().collect();
+
+        p
+    };
+
+    let neighbors: Vec<HashSet<NodeIndex>> = graph.node_indices()
+        .map(|u| {
+            graph.neighbors(u).collect()
+        }).collect();
 
     let n = p.len();
     let mut op = vec![0; n];
@@ -173,50 +41,48 @@ fn strong_module_tree(graph: &UnGraph<(), ()>) -> StrongModuleTree {
     let mut lc: Vec<_> = (0..n - 1).collect();
     let mut uc: Vec<_> = (1..n).collect();
 
-    traceln!("{:?}", d1(&p));
-    traceln!("op: {:?}", op);
-    traceln!("cl: {:?}", cl);
+    trace!("{:?}", d1(&p));
+    trace!("op: {:?}", op);
+    trace!("cl: {:?}", cl);
 
-    traceln!("count");
-    for j in 0..n - 1 {
-        trace!("j={j} :");
-        for i in 0..j {
-            trace!(" {i}");
-            if graph.find_edge(p[i], p[j]).is_some() == graph.find_edge(p[i], p[j + 1]).is_some() &&
-                graph.find_edge(p[j], p[i]).is_some() == graph.find_edge(p[j + 1], p[i]).is_some() {
-                continue;
+    {
+        let _span_ = span!(Level::INFO, "count").entered();
+
+        for j in 0..n - 1 {
+            for i in 0..j {
+                let adj_p_i = &neighbors[p[i].index()];
+                if adj_p_i.contains(&p[j]) == adj_p_i.contains(&p[j + 1]) {
+                    continue;
+                }
+                op[i] += 1;
+                cl[j] += 1;
+                lc[j] = i;
+                break;
             }
-            op[i] += 1;
-            cl[j] += 1;
-            lc[j] = i;
-            break;
-        }
-        traceln!();
-        let j = j + 1;
-        for i in (j + 1..n).rev() {
-            if graph.find_edge(p[i], p[j - 1]).is_some() == graph.find_edge(p[i], p[j]).is_some() &&
-                graph.find_edge(p[j - 1], p[i]).is_some() == graph.find_edge(p[j], p[i]).is_some() {
-                continue;
+            let j = j + 1;
+            for i in (j + 1..n).rev() {
+                let adj_p_i = &neighbors[p[i].index()];
+                if adj_p_i.contains(&p[j - 1]) == adj_p_i.contains(&p[j]) {
+                    continue;
+                }
+                op[j] += 1;
+                cl[i] += 1;
+                uc[j - 1] = i;
+                break;
             }
-            op[j] += 1;
-            cl[i] += 1;
-            uc[j - 1] = i;
-            break;
         }
     }
 
-    traceln!("op: {:?}", op);
-    traceln!("cl: {:?}", cl);
+    trace!("op: {:?}", op);
+    trace!("cl: {:?}", cl);
 
     {
-        let mut s = vec![];
-        traceln!("remove_non_module_dummy_nodes");
+        let _span_ = span!(Level::INFO, "remove_non_module_dummy_nodes").entered();
+        let mut s = Vec::with_capacity(n);
         for j in 0..n {
-            trace!("j={j} :");
             for _ in 0..op[j] { s.push(j); }
             for _ in 0..cl[j] {
                 let i = s.pop().unwrap();
-                trace!(" {i}");
                 if i < j {
                     let l = (i..j).map(|k| lc[k]).min().unwrap();
                     let u = (i..j).map(|k| uc[k]).max().unwrap();
@@ -225,20 +91,19 @@ fn strong_module_tree(graph: &UnGraph<(), ()>) -> StrongModuleTree {
                 op[i] -= 1;
                 cl[j] -= 1;
             }
-            traceln!();
         }
     }
 
-    traceln!("op: {:?}", op);
-    traceln!("cl: {:?}", cl);
+    trace!("op: {:?}", op);
+    trace!("cl: {:?}", cl);
 
     {
-        traceln!("create_nodes");
-        let mut s = vec![];
-        let mut t = vec![];
+        let _span_ = span!(Level::INFO, "create_nodes").entered();
+
+        let mut s = Vec::with_capacity(n);
+        let mut t = Vec::with_capacity(n);
         let mut l = 0;
         for k in 0..n {
-            traceln!("k={k}");
             for _ in 0..op[k] + 1 {
                 s.push(k);
                 t.push(l);
@@ -247,7 +112,6 @@ fn strong_module_tree(graph: &UnGraph<(), ()>) -> StrongModuleTree {
             for c in (0..cl[k] + 1).rev() {
                 let i = t.pop().unwrap();
                 let j = s.pop().unwrap();
-                traceln!("  {c} {i} {j}");
 
                 l = i;
                 if i >= j { continue; }
@@ -268,55 +132,65 @@ fn strong_module_tree(graph: &UnGraph<(), ()>) -> StrongModuleTree {
         }
     }
 
-    traceln!("op: {:?}", op);
-    traceln!("cl: {:?}", cl);
+    trace!("op: {:?}", op);
+    trace!("cl: {:?}", cl);
 
     {
-        let mut s = vec![];
-        traceln!("remove_singleton_dummy_nodes");
+        let _span_ = span!(Level::INFO, "remove_singleton_dummy_nodes").entered();
+        let mut s = Vec::with_capacity(n);
+
         for j in 0..n {
-            trace!("j={j} :");
-            for _ in 0..op[j] { s.push(j); }
-            trace!(" {:?} :", s);
+            s.extend(std::iter::repeat(j).take(op[j]));
+            //for _ in 0..op[j] { s.push(j); }
             let mut i_ = usize::MAX;
-            for _ in 0..cl[j]
-            {
+            for _ in 0..cl[j] {
                 let i = s.pop().unwrap();
-                trace!(" {i}");
                 if i == i_ {
                     op[i] -= 1;
                     cl[j] -= 1;
                 }
                 i_ = i;
             }
-            traceln!();
         }
     }
     op[0] -= 1;
     cl[n - 1] -= 1;
 
 
-    traceln!("op: {:?}", op);
-    traceln!("cl: {:?}", cl);
-    traceln!("p: {:?}", d1(&p));
+    trace!("op: {:?}", op);
+    trace!("cl: {:?}", cl);
+    trace!("p: {:?}", d1(&p));
 
     let mut s = vec![vec![]];
-    for (j, x) in p.iter().enumerate() {
-        for _ in 0..op[j] { s.push(vec![]); }
-        s.last_mut().unwrap().push(NodeInProgress::Node(*x));
-        for _ in 0..cl[j] {
-            let n = s.pop().unwrap();
-            s.last_mut().unwrap().push(NodeInProgress::Vec(n));
+    {
+        let _span_ = span!(Level::INFO, "build").entered();
+
+        for (j, x) in p.iter().enumerate() {
+            for _ in 0..op[j] { s.push(vec![]); }
+            s.last_mut().unwrap().push(NodeInProgress::Node(*x));
+            for _ in 0..cl[j] {
+                let n = s.pop().unwrap();
+                s.last_mut().unwrap().push(NodeInProgress::Vec(n[0].first_leaf(), n));
+            }
         }
     }
 
-    traceln!("{:?}", s);
+    trace!("{:?}", s);
 
     let s = s.pop().unwrap();
 
-    let mut t = classify_nodes(&s, graph);
-    delete_weak_modules(&mut t);
-    traceln!("{:?}", t);
+
+    let mut t = {
+        let _span_ = span!(Level::INFO, "classify_nodes").entered();
+        classify_nodes(&s, &neighbors)
+    };
+
+    {
+        let _span_ = span!(Level::INFO, "delete_weak_modules").entered();
+        delete_weak_modules(&mut t);
+    }
+
+    trace!("{:?}", t);
     t
 }
 
@@ -370,14 +244,14 @@ impl Debug for Node {
 
 enum NodeInProgress {
     Node(NodeIndex),
-    Vec(Vec<NodeInProgress>),
+    Vec(NodeIndex, Vec<NodeInProgress>),
 }
 
 impl Debug for NodeInProgress {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             NodeInProgress::Node(x) => { write!(f, "{}", x.index()) }
-            NodeInProgress::Vec(v) => {
+            NodeInProgress::Vec(_first, v) => {
                 let mut l = f.debug_list();
                 for x in v {
                     l.entry(x);
@@ -388,22 +262,24 @@ impl Debug for NodeInProgress {
     }
 }
 
-fn first_leaf(node: &NodeInProgress) -> NodeIndex {
-    match node {
-        NodeInProgress::Node(x) => { *x }
-        NodeInProgress::Vec(x) => { first_leaf(&x[0]) }
+impl NodeInProgress {
+    fn first_leaf(&self) -> NodeIndex {
+        match self {
+            NodeInProgress::Node(x) => { *x }
+            NodeInProgress::Vec(x, _) => { *x }
+        }
     }
 }
 
-fn classify_nodes(t: &Vec<NodeInProgress>, graph: &UnGraph<(), ()>) -> StrongModuleTree {
+fn classify_nodes(t: &Vec<NodeInProgress>, neighbors: &Vec<HashSet<NodeIndex>>) -> StrongModuleTree {
     let n = t.len();
 
-    let nodes: Vec<_> = t.iter().map(first_leaf).collect();
+    let nodes: Vec<_> = t.iter().map(|n| n.first_leaf()).collect();
 
     let mut m = 0;
     for (i, x) in nodes.iter().enumerate() {
         for y in &nodes[i + 1..] {
-            m += graph.find_edge(*x, *y).is_some() as usize;
+            m += neighbors[x.index()].contains(y) as usize;
         }
     }
 
@@ -411,49 +287,7 @@ fn classify_nodes(t: &Vec<NodeInProgress>, graph: &UnGraph<(), ()>) -> StrongMod
     let kind = if m == 0 { Kind::Parallel } else if 2 * m == n * (n - 1) { Kind::Complete } else { Kind::Prime };
     let nodes = t.iter().map(|x| match x {
         NodeInProgress::Node(x) => { Node::Node(*x) }
-        NodeInProgress::Vec(x) => { Node::Tree(classify_nodes(x, graph)) }
-    }).collect();
-    StrongModuleTree { kind, edge, nodes }
-}
-
-fn _classify_nodes(t: &Vec<NodeInProgress>, graph: &UnGraph<(), ()>) -> StrongModuleTree {
-    traceln!("classify_nodes");
-    let n = t.len();
-    let mut counts = vec![0; n];
-    let x = first_leaf(&t[0]);
-    let y = first_leaf(&t[1]);
-    let mut edge = (graph.find_edge(y, x).is_some(), graph.find_edge(x, y).is_some());
-
-    let mut a = false;
-    let mut b = false;
-    'outer: for i in 0..n {
-        for j in 0..n {
-            if i == j { continue; }
-            let x = first_leaf(&t[i]);
-            let y = first_leaf(&t[j]);
-            (a, b) = (graph.find_edge(y, x).is_some(), graph.find_edge(x, y).is_some());
-            traceln!("{i} {j} {} {} {} {}", x.index(), y.index(), a as i32, b as i32);
-            if edge == (a, b) {
-                counts[i] += 1;
-            } else if edge == (b, a) {
-                counts[j] += 1;
-            } else {
-                break 'outer;
-            }
-        }
-    }
-    traceln!("{:?}", counts);
-    counts.sort();
-    let kind = if a == b && counts.iter().all(|c| *c == n - 1) {
-        Kind::Complete
-    } else if counts.iter().all(|c| *c == 0) {
-        Kind::Parallel
-    } else { Kind::Prime };
-    if edge.0 & !edge.1 { edge = (edge.1, edge.0); }
-    let edge = if kind == Kind::Prime { None } else { Some(edge) };
-    let nodes = t.iter().map(|x| match x {
-        NodeInProgress::Node(x) => { Node::Node(*x) }
-        NodeInProgress::Vec(x) => { Node::Tree(_classify_nodes(x, graph)) }
+        NodeInProgress::Vec(_, x) => { Node::Tree(classify_nodes(x, neighbors)) }
     }).collect();
     StrongModuleTree { kind, edge, nodes }
 }
@@ -474,13 +308,13 @@ fn delete_weak_modules(t: &mut StrongModuleTree) {
 }
 
 #[allow(dead_code)]
-fn d2<'a, P>(p: P) -> Vec<Vec<usize>>
+pub(crate) fn d2<'a, P>(p: P) -> Vec<Vec<usize>>
     where P: IntoIterator<Item=&'a Vec<NodeIndex>>,
 {
     p.into_iter().map(|q| d1(q)).collect()
 }
 
-fn d1(p: &[NodeIndex]) -> Vec<usize> {
+pub(crate) fn d1(p: &[NodeIndex]) -> Vec<usize> {
     p.iter().map(|u| u.index()).collect()
 }
 
@@ -518,14 +352,14 @@ pub fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKind, ()>
 
 #[cfg(test)]
 mod tests {
+    use crate::factorizing_permutation::kar19::factorizing_permutation;
     use super::*;
 
     #[allow(non_snake_case)]
     #[test]
     fn it_works() {
         let graph = UnGraph::from_edges([(0, 1), (1, 2), (3, 4), (4, 5)]);
-        let V = graph.node_indices().collect();
-        let p = symgraph_factorizing_permutation(&graph, V);
+        let p = factorizing_permutation(&graph);
         println!("{:?}", d1(&p));
     }
 
@@ -533,8 +367,7 @@ mod tests {
     #[test]
     fn ted08_test0() {
         let graph = common::instances::ted08_test0();
-        let V = graph.node_indices().collect();
-        let p = symgraph_factorizing_permutation(&graph, V);
+        let p = factorizing_permutation(&graph);
         println!("{:?}", d1(&p));
     }
 

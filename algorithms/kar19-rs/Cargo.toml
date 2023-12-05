@@ -7,4 +7,6 @@ edition = "2021"
 
 [dependencies]
 common = { path = "../../common" }
+playground = { path = "../../playground" }
 petgraph.workspace = true
+tracing.workspace = true
