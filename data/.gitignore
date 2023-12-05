@@ -1,2 +1,7 @@
-01-raw/*
-02-graphs/*
+01-raw
+02-graphs
+03-graph-stats
+04-algo-runs
+05-md-trees
+06-md-tree-stats
+10-graph-plots
