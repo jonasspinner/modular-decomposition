@@ -328,6 +328,7 @@ impl Debug for Partition {
 mod test {
     use crate::partition_refinement::Partition;
 
+    #[allow(dead_code)]
     fn example_partition() -> Partition {
         let mut partition = Partition::new(8);
         partition.refine([2, 3, 4, 5]);

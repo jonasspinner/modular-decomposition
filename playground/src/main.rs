@@ -5,10 +5,10 @@ mod splitters;
 mod list;
 mod partition_refinement;
 mod modular_functions;
+mod factorizing_permutation;
 
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::UnGraph;
-use petgraph::visit::{IntoNeighbors, NodeCount};
 use crate::modular_partition::modular_partition;
 
 fn small_graph() -> UnGraph<(), ()> {
@@ -65,7 +65,7 @@ fn main() {
         let u = part.next().unwrap();
         keep[u as usize] = true;
     }
-    graph.retain_nodes(|a, u| { keep[u.index()] });
+    graph.retain_nodes(|_, u| { keep[u.index()] });
 
     let mut partition = partition_refinement::Partition::new(graph.node_count());
     for u in graph.node_indices() {
@@ -78,7 +78,7 @@ fn main() {
         let u = part.next().unwrap();
         keep[u as usize] = true;
     }
-    graph.retain_nodes(|a, u| { keep[u.index()] });
+    graph.retain_nodes(|_, u| { keep[u.index()] });
 
     println!("{:?}", Dot::with_config(&graph, &[Config::NodeIndexLabel, Config::EdgeNoLabel]));
 }
