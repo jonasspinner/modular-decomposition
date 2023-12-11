@@ -47,6 +47,7 @@ pace2023_heuristic_names = [f"pace2023-{name}" for name in pace2023_heuristic_na
 #
 
 run.group("generate")
+
 run.add("generate_gnm",
         "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
         {
@@ -54,6 +55,30 @@ run.add("generate_gnm",
             "m": list(range(5000, 50000 + 1, 5000)),
             "seed": list(range(10)),
             "name": "gnm_n=[[n]]-m=[[m]]-s=[[seed]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
+run.add("generate_nx-cograph",
+        "python3 scripts/generate.py nx-cograph [[n]] --seed [[seed]] --output [[output]]",
+        {
+            "n": [2 ** 8, 2 ** 10, 2 ** 12],
+            "seed": list(range(10)),
+            "name": "nx-cograph_n=[[n]]-s=[[seed]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
+run.add("generate_cograph-uni-deg",
+        "python3 scripts/generate.py cograph-uni-deg "
+        "[[n]] --a [[a]] --b [[b]] --root-kind=[[root_kind]] --seed [[seed]] --output [[output]]",
+        {
+            "n": [2 ** 8, 2 ** 10, 2 ** 12],
+            "a": 2,
+            "b": 8,
+            "root_kind": ["series", "parallel"],
+            "seed": list(range(10)),
+            "name": "cograph-uni-deg_n=[[n]]-a=[[a]]-b=[[b]]-r=[[root_kind]]-s=[[seed]]",
             "output": "data/02-graphs/[[name]]"
         },
         creates_file="[[output]]")
