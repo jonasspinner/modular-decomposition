@@ -1,4 +1,3 @@
-#![feature(step_trait)]
 #![allow(dead_code)]
 
 use petgraph::graph::{DiGraph, NodeIndex, UnGraph};

@@ -1,4 +1,4 @@
-use std::iter::{FusedIterator, Step};
+use std::iter::FusedIterator;
 use common::make_index;
 
 
@@ -6,20 +6,6 @@ use common::make_index;
 make_index!(pub(crate) NodeIndex);
 make_index!(pub(crate) EdgeIndex);
 
-
-impl Step for EdgeIndex {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        end.index().checked_sub(start.index())
-    }
-
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        Some(EdgeIndex::new(start.index() + count))
-    }
-
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        start.index().checked_sub(count).map(|e| e.into())
-    }
-}
 
 #[derive(Default, Debug, Copy, Clone)]
 struct Node {
@@ -224,7 +210,7 @@ impl Graph {
 #[cfg(test)]
 mod test {
     use super::*;
-    use petgraph::visit::{EdgeRef, IntoEdgeReferences, NodeCount};
+    use petgraph::visit::EdgeRef;
     use common::instances::ted08_test0;
 
     fn ted08_test0_graph() -> Graph {
