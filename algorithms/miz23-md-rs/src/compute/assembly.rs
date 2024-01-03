@@ -67,15 +67,15 @@ fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<N
     for i in 0..pivot_index {
         vset.clear();
 
-        for &leaf in &leaves[i] {
+        'outer_loop: for &leaf in &leaves[i] {
             for &a in &alpha_list[leaf.idx()] {
                 let j = tree[a].data.comp_number as usize;
 
                 if !vset.get(j) {
                     fp_neighbors[i].push(VertexId::from(j));
                     vset.set(j);
-                    if fp_neighbors.len() == k - pivot_index {
-                        break; // 'outer_loop_exit; // Note: in C++ actually break inner loop, despite label name
+                    if fp_neighbors[i].len() == k - pivot_index {
+                        break 'outer_loop; // Note: in C++ actually break inner loop, despite label name
                     }
                 }
             }
