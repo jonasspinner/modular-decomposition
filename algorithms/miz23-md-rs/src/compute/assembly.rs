@@ -22,7 +22,6 @@ fn determine_right_comp_fragments(tree: &Forest<MDComputeNode>, ps: &[NodeIdx], 
 }
 
 fn determine_right_layer_neighbor(tree: &Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], ps: &[NodeIdx], pivot_index: usize) -> Vec<bool> {
-    // TODO: The resulting bool vector seems to have at most one index with the value true
     let mut ret = vec![false; ps.len()];
     for i in pivot_index + 1..ps.len() {
         let current_tree = ps[i];
@@ -36,12 +35,11 @@ fn determine_right_layer_neighbor(tree: &Forest<MDComputeNode>, alpha_list: &[Ve
                 }
             }
         }
-        if ret[i] { break; }
     }
     ret
 }
 
-fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], ps: &[NodeIdx], pivot_index: usize, vset: &mut FastSet, fp_neighbors: &mut Vec<Vec<VertexId>>) {
+fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], ps: &[NodeIdx], pivot_index: usize, vset: &mut FastSet, fp_neighbors: &mut [Vec<VertexId>]) {
     trace!("compute_fact_perm_edges {}", alpha_list.len());
     let k = ps.len();
 
@@ -58,9 +56,7 @@ fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<N
                 tree[leaf].data.comp_number = i as _;
             }
         } else {
-            for leaf in tree.leaves(ps[i]).collect::<Vec<_>>() {
-                tree[leaf].data.comp_number = i as _;
-            }
+            tree.leaves_data_mut(ps[i], |data| data.comp_number = i as _);
         }
     }
 
@@ -83,12 +79,10 @@ fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<N
     }
 }
 
-fn compute_mu(_tree: &mut Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: usize, neighbors: &[Vec<VertexId>]) -> Vec<usize> {
+fn compute_mu(ps: &[NodeIdx], pivot_index: usize, neighbors: &[Vec<VertexId>]) -> Vec<usize> {
     let mut mu: Vec<usize> = vec![0; ps.len()];
 
-    for (i, m) in mu.iter_mut().enumerate() {
-        *m = if i < pivot_index { pivot_index } else { 0 };
-    }
+    mu[0..pivot_index].fill(pivot_index);
 
     for i in 0..pivot_index {
         for &j in &neighbors[i] {
@@ -265,10 +259,9 @@ pub(crate) fn assemble(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeI
 
     compute_fact_perm_edges(tree, alpha_list, &ps, pivot_index, vset, fp_neighbors);
 
-    let mu = compute_mu(tree, &ps, pivot_index, fp_neighbors);
+    let mu = compute_mu(&ps, pivot_index, fp_neighbors);
 
     let boundaries = delineate(pivot_index, &lcocomp, &rcomp, &rlayer, &mu);
-
     let root = assemble_tree(tree, &ps, pivot_index, &boundaries);
 
     remove_degenerate_duplicates(tree, root);

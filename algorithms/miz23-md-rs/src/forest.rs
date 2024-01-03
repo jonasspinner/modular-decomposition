@@ -20,6 +20,10 @@ impl<Data> Forest<Data> {
     pub fn new() -> Self {
         Default::default()
     }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        Forest { nodes: Vec::with_capacity(capacity), removed: VecDeque::new(), num_live_nodes: 0 }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
@@ -181,27 +185,24 @@ impl<Data> Forest<Data> {
 }
 
 
-pub(crate) struct PreOrderNodeIdxIter<'a, Data> {
-    forest: &'a Forest<Data>,
+pub(crate) struct PreOrderNodeIdxWalker {
     start: NodeIdx,
     next: Option<NodeIdx>,
 }
 
-impl<'a, Data> PreOrderNodeIdxIter<'a, Data> {
+impl PreOrderNodeIdxWalker {
     #[allow(dead_code)]
-    fn new(forest: &'a Forest<Data>, index: NodeIdx) -> Self {
-        PreOrderNodeIdxIter { forest, start: index, next: Some(index) }
+    fn new(index: NodeIdx) -> Self {
+        PreOrderNodeIdxWalker { start: index, next: Some(index) }
     }
 }
 
-impl<Data> Iterator for PreOrderNodeIdxIter<'_, Data> {
-    type Item = NodeIdx;
-
-    fn next(&mut self) -> Option<Self::Item> {
+impl PreOrderNodeIdxWalker {
+    fn next<Data>(&mut self, forest: &Forest<Data>) -> Option<NodeIdx> {
         if let Some(next) = self.next {
             let current = next;
 
-            let Node { first_child, right, parent, .. } = self.forest[current];
+            let Node { first_child, right, parent, .. } = forest[current];
             self.next = if let Some(child) = first_child {
                 Some(child)
             } else if current == self.start {
@@ -212,7 +213,7 @@ impl<Data> Iterator for PreOrderNodeIdxIter<'_, Data> {
                 let mut ancestor = parent;
                 loop {
                     if let Some(index) = ancestor {
-                        let Node { parent, right, .. } = self.forest[index];
+                        let Node { parent, right, .. } = forest[index];
                         if index == self.start { break None; } else if right.is_some() { break right; }
                         ancestor = parent;
                     } else { break None; }
@@ -222,6 +223,26 @@ impl<Data> Iterator for PreOrderNodeIdxIter<'_, Data> {
             return Some(current);
         }
         None
+    }
+}
+
+pub(crate) struct PreOrderNodeIdxIter<'a, Data> {
+    forest: &'a Forest<Data>,
+    walker: PreOrderNodeIdxWalker,
+}
+
+impl<'a, Data> PreOrderNodeIdxIter<'a, Data> {
+    #[allow(dead_code)]
+    fn new(forest: &'a Forest<Data>, index: NodeIdx) -> Self {
+        PreOrderNodeIdxIter { forest, walker: PreOrderNodeIdxWalker::new(index) }
+    }
+}
+
+impl<Data> Iterator for PreOrderNodeIdxIter<'_, Data> {
+    type Item = NodeIdx;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.walker.next(self.forest)
     }
 }
 
@@ -260,7 +281,18 @@ impl<Data> Forest<Data> {
         ret
     }
     pub fn leaves(&self, index: NodeIdx) -> impl Iterator<Item=NodeIdx> + '_ {
-        self.get_dfs_reverse_preorder_nodes(index).into_iter().filter(|&node| { self[node].is_leaf() })
+        self.pre_order_node_indices(index).filter(|&node| { self[node].is_leaf() })
+    }
+}
+
+impl<Data> Forest<Data> {
+    pub fn leaves_data_mut(&mut self, index: NodeIdx, f: impl Fn(&mut Data)) {
+        let mut walker = PreOrderNodeIdxWalker::new(index);
+        while let Some(node) = walker.next(self) {
+            if self[node].is_leaf() {
+                f(&mut self[node].data);
+            }
+        }
     }
 }
 
