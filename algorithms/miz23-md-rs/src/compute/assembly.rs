@@ -45,7 +45,9 @@ fn compute_fact_perm_edges(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<N
     trace!("compute_fact_perm_edges {}", alpha_list.len());
     let k = ps.len();
 
-    fp_neighbors.iter_mut().for_each(|n| n.clear());
+    if pivot_index == 0 { return; }
+
+    fp_neighbors[0..pivot_index].iter_mut().for_each(|n| n.clear());
 
     let mut leaves = vec![vec![]; pivot_index];
 
