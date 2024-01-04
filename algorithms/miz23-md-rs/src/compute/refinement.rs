@@ -22,11 +22,15 @@ mod set_up {
 
             if tree[c].data.op_type == op_type {
                 for x in tree.children(c).collect::<Vec<_>>() {
-                    for y in tree.get_dfs_reverse_preorder_nodes(x) { tree[y].data.comp_number = comp_number; }
+                    tree.subtree_node_mut(x, |node| {
+                        node.data.comp_number = comp_number;
+                    });
                     comp_number += 1;
                 }
             } else {
-                for y in tree.get_dfs_reverse_preorder_nodes(c) { tree[y].data.comp_number = comp_number; }
+                tree.subtree_node_mut(c, |node| {
+                    node.data.comp_number = comp_number;
+                });
                 comp_number += 1;
             }
         }
@@ -34,7 +38,7 @@ mod set_up {
 
     pub(crate) fn number_by_tree(tree: &mut Forest<MDComputeNode>, problem: NodeIdx) {
         for (tree_number, c) in tree.children(problem).collect::<Vec<_>>().into_iter().enumerate() {
-            for y in tree.get_dfs_reverse_preorder_nodes(c) { tree[y].data.tree_number = tree_number as _; }
+            tree.subtree_node_mut(c, |node| { node.data.tree_number = tree_number as _; });
         }
     }
 }

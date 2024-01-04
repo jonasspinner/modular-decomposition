@@ -250,10 +250,10 @@ mod implementation {
 
                 assemble(tree, &alpha_list, current_problem, &mut fp_neighbors, &mut vset);
 
-                for c in tree.get_dfs_reverse_preorder_nodes(tree[current_problem].first_child.unwrap()) {
-                    if tree[c].is_leaf() { alpha_list[c.idx()].clear(); }
-                    tree[c].data.clear();
-                }
+                tree.subtree_node_mut(tree[current_problem].first_child.unwrap(), |node| {
+                    if node.is_leaf() { alpha_list[node.data.vertex.idx()].clear(); }
+                    node.data.clear();
+                });
 
                 merge_components(tree, current_problem, extra_components);
             }

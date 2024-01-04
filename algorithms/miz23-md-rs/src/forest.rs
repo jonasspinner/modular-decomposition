@@ -286,13 +286,18 @@ impl<Data> Forest<Data> {
 }
 
 impl<Data> Forest<Data> {
-    pub fn leaves_data_mut(&mut self, index: NodeIdx, f: impl Fn(&mut Data)) {
+    pub fn subtree_node_mut(&mut self, index: NodeIdx, mut f: impl FnMut(&mut Node<Data>)) {
         let mut walker = PreOrderNodeIdxWalker::new(index);
         while let Some(node) = walker.next(self) {
-            if self[node].is_leaf() {
-                f(&mut self[node].data);
-            }
+            f(&mut self[node]);
         }
+    }
+    pub fn leaves_data_mut(&mut self, index: NodeIdx, mut f: impl FnMut(&mut Data)) {
+        self.subtree_node_mut(index, |node| {
+            if node.is_leaf() {
+                f(&mut node.data);
+            }
+        });
     }
 }
 
