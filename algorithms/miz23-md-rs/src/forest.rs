@@ -246,6 +246,8 @@ impl<Data> Iterator for PreOrderNodeIdxIter<'_, Data> {
     }
 }
 
+impl<Data> FusedIterator for PreOrderNodeIdxIter<'_, Data> {}
+
 
 impl<Data> Forest<Data> {
     #[allow(dead_code)]
@@ -260,23 +262,7 @@ impl<Data> Forest<Data> {
         while let Some(x) = q.pop_front() {
             ret.push(x);
 
-            for c in self.children(x) {
-                q.push_back(c);
-            }
-        }
-        ret
-    }
-    pub fn get_dfs_reverse_preorder_nodes(&self, index: NodeIdx) -> Vec<NodeIdx> {
-        let mut ret = vec![];
-        let mut stack = vec![];
-
-        stack.push(index);
-        while let Some(x) = stack.pop() {
-            ret.push(x);
-
-            for c in self.children(x) {
-                stack.push(c);
-            }
+            q.extend(self.children(x));
         }
         ret
     }

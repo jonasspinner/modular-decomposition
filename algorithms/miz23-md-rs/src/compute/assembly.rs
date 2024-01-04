@@ -223,7 +223,8 @@ fn assemble_tree(tree: &mut Forest<MDComputeNode>, ps: &[NodeIdx], pivot_index: 
 }
 
 fn remove_degenerate_duplicates(tree: &mut Forest<MDComputeNode>, index: NodeIdx) {
-    let nodes: Vec<NodeIdx> = tree.get_bfs_nodes(index);
+    // TODO: replace by post order iteration
+    let nodes = tree.get_bfs_nodes(index);
 
     for &it in nodes.iter().rev() {
         if it == index { break; }
@@ -237,7 +238,7 @@ fn remove_degenerate_duplicates(tree: &mut Forest<MDComputeNode>, index: NodeIdx
     }
 }
 
-pub(crate) fn assemble(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], prob: NodeIdx, fp_neighbors: &mut Vec<Vec<VertexId>>, vset: &mut FastSet) {
+pub(crate) fn assemble(tree: &mut Forest<MDComputeNode>, alpha_list: &[Vec<NodeIdx>], prob: NodeIdx, fp_neighbors: &mut [Vec<VertexId>], vset: &mut FastSet) {
     assert!(!tree[prob].is_leaf());
 
     let mut ps = vec![];

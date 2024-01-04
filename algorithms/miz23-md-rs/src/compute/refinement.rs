@@ -147,7 +147,7 @@ mod group_sibling_nodes {
     pub(crate) fn group_sibling_nodes(tree: &mut Forest<MDComputeNode>, nodes: &[NodeIdx]) -> Vec<(NodeIdx, bool)> {
         //trace!("group_sibling_nodes start: {}", tree.to_string(Some(tree.get_root(NodeIdx::from(0)))));
         let mut parents = vec![];
-        let mut sibling_groups = vec![];
+        let mut sibling_groups = Vec::with_capacity(nodes.len());
 
         for &node in nodes {
             if is_root_operator(tree, node) {
@@ -180,7 +180,7 @@ mod group_sibling_nodes {
                 }
 
                 let mut c_ = tree[p].first_child;
-                for _i in 0..num_marks {
+                for _ in 0..num_marks {
                     let c = c_.unwrap();
                     let next = tree[c].right;
                     tree.move_to(c, grouped_children);
