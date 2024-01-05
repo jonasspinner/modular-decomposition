@@ -169,7 +169,7 @@ pub(crate) mod seq {
     /// For a sequence of nodes, which does not divide any parts on its boundaries, the set of nodes
     /// in it will never change in the rest of the algorithm. It will only be divided up into
     /// more and more parts, but the the nodes in it will not change.
-    pub fn factorizing_permutation(graph: &UnGraph<(), ()>) -> Permutation {
+    pub(crate) fn factorizing_permutation(graph: &UnGraph<(), ()>) -> Permutation {
         let mut state = State::new(graph);
         state.partition_refinement();
         state.into_permutation()
