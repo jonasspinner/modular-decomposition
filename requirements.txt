@@ -1,0 +1,11 @@
+filelock==3.13.1
+matplotlib==3.8.0rc1
+pandas==2.1.2
+pathos==0.3.1
+pydot==1.4.2
+tqdm==4.66.1
+multiprocess==0.70.15
+networkx==3.1
+numpy==1.25.2
+scipy==1.11.2
+seaborn==0.13.0
