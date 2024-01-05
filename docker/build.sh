@@ -14,6 +14,7 @@ cp docker/scripts/enter.sh md_exp/
 cp docker/scripts/kill.sh md_exp/
 cp docker/scripts/load.sh md_exp/
 cp docker/scripts/run.sh md_exp/
+cp scripts/data/create_dirs.sh md_exp/
 
 zip -r md_exp.zip md_exp/
 rm docker/md_exp.tar || true
