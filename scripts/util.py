@@ -77,6 +77,16 @@ def read_md_tree_adj(file: TextIO) -> Tuple[nx.DiGraph, List[str]]:
     return md, comments
 
 
+def write_md_tree_adj(out, md: nx.DiGraph):
+    n, m = md.number_of_nodes(), md.number_of_edges()
+    out.write(f"{n} {m} 10\n")
+
+    assert list(md.nodes) == list(range(n))
+    for u, kind in md.nodes.data('kind'):
+        label = 0 if kind == 'prime' else 1 if kind == 'series' else 2 if kind == 'parallel' else 3 + u
+        out.write(f"{' '.join(map(str, [label] + list(sorted(md.neighbors(u)))))}\n")
+
+
 def run_with_timeout(f, args: Tuple, timeout: int):
     with Pool() as p:
         r = p.apply_async(f, args)
