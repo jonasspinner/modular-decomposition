@@ -9,15 +9,14 @@ from typing import Optional
 from util import read_metis, read_md_tree_adj, run_with_timeout
 
 
-def analyze_graph(input_path: Optional[Path], only_header: bool, timeout: int):
+def analyze_graph(input_path: Optional[Path], only_header: bool, timeout: int) -> str:
     line = "{name},{timeout}," \
            "{n},{m},{density}," \
            "{deg_min},{deg_avg},{deg_max},{deg_var},{deg_coeff_of_var},{deg_heterogeneity}," \
            "{num_cc},{max_cc_n},{max_cc_m},{max_cc_density},{max_cc_radius},{max_cc_diameter},{max_cc_avg_dist}," \
            "{average_clustering_estimate},{num_triangles}"
     if only_header:
-        print(line.replace("{", "").replace("}", ""))
-        return
+        return line.replace("{", "").replace("}", "")
 
     assert input_path.exists()
 
@@ -58,10 +57,10 @@ def analyze_graph(input_path: Optional[Path], only_header: bool, timeout: int):
     t = run_with_timeout(nx.triangles, (graph,), timeout)
     num_triangles = int(sum(t.values())) // 3 if t is not None else None
 
-    print(line.format(**{k: v if v is not None else "" for k, v in locals().items()}))
+    return line.format(**{k: v if v is not None else "" for k, v in locals().items()})
 
 
-def analyze_tree(input_path: Optional[Path], only_header: bool, timeout: int):
+def analyze_tree(input_path: Optional[Path], only_header: bool, timeout: int) -> str:
     line = "{name},{root_kind}," \
            "{num_nodes},{num_inner},{num_leaves}," \
            "{num_prime},{num_series},{num_parallel}," \
@@ -76,8 +75,7 @@ def analyze_tree(input_path: Optional[Path], only_header: bool, timeout: int):
            "{inner_out_deg_min},{inner_out_deg_avg},{inner_out_deg_max},{inner_out_deg_var}," \
            "{inner_out_deg_coeff_of_var},{inner_out_deg_heterogeneity}"
     if only_header:
-        print(line.replace("{", "").replace("}", ""))
-        return
+        return line.replace("{", "").replace("}", "")
 
     assert input_path.exists()
 
@@ -146,7 +144,7 @@ def analyze_tree(input_path: Optional[Path], only_header: bool, timeout: int):
     inner_out_deg_coeff_of_var = np.sqrt(inner_out_deg_var) / inner_out_deg_avg
     inner_out_deg_heterogeneity = np.log10(inner_out_deg_coeff_of_var) if inner_out_deg_coeff_of_var > 0.0 else -np.inf
 
-    print(line.format(**{k: v if v is not None else "" for k, v in locals().items()}))
+    return line.format(**{k: v if v is not None else "" for k, v in locals().items()})
 
 
 def main():
@@ -158,15 +156,22 @@ def main():
         group = p.add_mutually_exclusive_group(required=True)
         group.add_argument("--only-header", action="store_true")
         group.add_argument("--input", type=Path)
+        p.add_argument("--output", type=Path, required=True)
         p.add_argument("--timeout", type=int, default=100)
     args = parser.parse_args()
 
     if args.command == "graph":
-        analyze_graph(args.input, args.only_header, args.timeout)
+        res = analyze_graph(args.input, args.only_header, args.timeout)
     elif args.command == "tree":
-        analyze_tree(args.input, args.only_header, args.timeout)
+        res = analyze_tree(args.input, args.only_header, args.timeout)
     else:
         assert False
+
+    if args.output is not None:
+        with args.output.open("w") as output:
+            output.write(res)
+    else:
+        print(res)
 
 
 if __name__ == "__main__":

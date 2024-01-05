@@ -105,7 +105,7 @@ run.group("graph_stats")
 
 names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
 run.add(f"analyze_graphs",
-        "python3 scripts/analyze.py graph --input [[input]] > [[output]]",
+        "python3 scripts/analyze.py graph --input [[input]] --output [[output]]",
         {
             "name": names,
             "input": "data/02-graphs/[[name]]",
@@ -146,7 +146,7 @@ run.group("md_tree_stats")
 
 names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
 run.add(f"analyze_md_trees",
-        "python3 scripts/analyze.py tree --input [[input]] > [[output]]",
+        "python3 scripts/analyze.py tree --input [[input]] --output [[output]]",
         {
             "name": names,
             "input": "data/05-md-trees/miz23-rust/[[name]].md",
