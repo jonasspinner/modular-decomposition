@@ -88,7 +88,7 @@ def write_md_tree_adj(out, md: nx.DiGraph):
 
 
 def run_with_timeout(f, args: Tuple, timeout: int):
-    with Pool() as p:
+    with Pool(processes=1) as p:
         r = p.apply_async(f, args)
         try:
             return r.get(timeout)
