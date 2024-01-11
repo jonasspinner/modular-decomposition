@@ -1,7 +1,7 @@
 use std::iter::zip;
 use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
 use common::modular_decomposition::MDNodeKind;
-use tracing::instrument;
+use tracing::{info, instrument};
 use crate::improved::factorizing_permutation::Permutation;
 use crate::shared;
 
@@ -20,13 +20,19 @@ pub(crate) fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKi
 
     build_parenthesizing(graph, &mut op, &mut cl, &mut lc, &mut uc, &p);
 
+    info!(n, op = op.iter().sum::<usize>(), cl = cl.iter().sum::<usize>());
+
     remove_non_module_dummy_nodes(&mut op, &mut cl, &mut lc, &mut uc);
 
     shared::create_consecutive_twin_nodes(&mut op, &mut cl, &lc, &uc);
 
     shared::remove_singleton_dummy_nodes(&mut op, &mut cl);
 
-    build_tree(graph, &op, &cl, &p)
+    let tree = build_tree(graph, &op, &cl, &p);
+
+    info!(number_of_nodes = tree.node_count(), number_of_inner_nodes = tree.node_count() - graph.node_count());
+
+    tree
 }
 
 #[instrument(skip_all)]
