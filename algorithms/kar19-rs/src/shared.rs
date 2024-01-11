@@ -1,7 +1,7 @@
 use tracing::instrument;
 
 #[instrument(skip_all)]
-pub(crate) fn create_nodes(op: &mut [usize], cl: &mut [usize], lc: &[usize], uc: &[usize]) {
+pub(crate) fn create_consecutive_twin_nodes(op: &mut [usize], cl: &mut [usize], lc: &[usize], uc: &[usize]) {
     let n = op.len();
     let mut s = Vec::with_capacity(n);
     let mut t = Vec::with_capacity(n);

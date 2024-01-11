@@ -1,5 +1,4 @@
-mod basic;
-mod factorizing_permutation;
+mod base;
 mod improved;
 mod shared;
 
