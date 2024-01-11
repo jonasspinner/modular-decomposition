@@ -4,7 +4,9 @@ pub(crate) mod kar19 {
     use petgraph::graph::{NodeIndex, UnGraph};
     use crate::factorizing_permutation::kar19::util::{smaller_larger, splice};
     #[allow(unused_imports)]
-    use crate::{d1, d2, trace};
+    use crate::trace;
+    #[allow(unused_imports)]
+    use crate::basic::{d1, d2};
 
     #[allow(non_snake_case, dead_code)]
     pub(crate) fn factorizing_permutation(graph: &UnGraph<(), ()>) -> Vec<NodeIndex> {
