@@ -20,6 +20,7 @@ run.add("build_convert", "cargo build --bin convert --release", {})
 run.group("download")
 
 run.add("download_pace2023", "bash scripts/data/download_pace2023.sh", {})
+run.add("download_girg_deg_scaling", "bash scripts/data/download_girg_deg_scaling.sh", {})
 
 #
 # preprocessing
@@ -41,6 +42,19 @@ run.add("convert_pace2023",
         creates_file="[[output]]")
 pace2023_exact_names = [f"pace2023-{name}" for name in pace2023_exact_names]
 pace2023_heuristic_names = [f"pace2023-{name}" for name in pace2023_heuristic_names]
+
+girg_deg_scaling_names = [path.name[17:] for path in
+                          Path("data/01-raw/girg_deg_scaling/edge_lists_girg_deg_scaling").glob("girg_deg_scaling_*")]
+run.add("convert_girg_deg_scaling",
+        "cargo run --bin convert --release -- "
+        "--input-type edge-list --output-type metis "
+        "--input [[input]] --output [[output]]",
+        {
+            "name": girg_deg_scaling_names,
+            "input": "data/01-raw/girg_deg_scaling/edge_lists_girg_deg_scaling/girg_deg_scaling_[[name]]",
+            "output": "data/02-graphs/girg_deg_scaling-[[name]]"
+        },
+        creates_file="[[output]]")
 
 #
 # generate

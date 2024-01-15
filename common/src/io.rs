@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fmt::{Debug, Display, Formatter};
@@ -18,6 +19,7 @@ use crate::modular_decomposition::MDNodeKind;
 pub enum GraphFileType {
     Pace2023,
     Metis,
+    EdgeList,
 }
 
 
@@ -92,7 +94,7 @@ pub enum ReadMetisError {
     WrongN(usize, usize),
     WrongM(usize, usize),
     ZeroIndex,
-    MissingReverseEdge(usize, usize),
+    NumReverseEdgesNotMatching(usize, usize),
     SelfLoop(usize),
     ParseInt(ParseIntError),
     IoError(io::Error),
@@ -115,7 +117,7 @@ impl Display for ReadMetisError {
             ReadMetisError::WrongN(actual, expected) => { write!(f, "wrong n given in header. expected {expected}, got {actual}") }
             ReadMetisError::WrongM(actual, expected) => { write!(f, "wrong m given in header. expected {expected}, got {actual}") }
             ReadMetisError::ZeroIndex => { write!(f, "zero index. metis indices start from 1") }
-            ReadMetisError::MissingReverseEdge(u, v) => { write!(f, "missing reverse edge ({u} {v})") }
+            ReadMetisError::NumReverseEdgesNotMatching(actual, expected) => { write!(f, "number of reverse edges not matching. expected {expected}, got {actual}") }
             ReadMetisError::SelfLoop(u) => { write!(f, "self loop not allowed ({u}, {u})") }
             ReadMetisError::ParseInt(err) => { write!(f, "parse error {err}") }
             ReadMetisError::IoError(err) => { write!(f, "io error {err}") }
@@ -168,6 +170,7 @@ pub fn read_metis<P>(path: P) -> Result<UnGraph<(), ()>, ReadMetisError>
 
     for _ in 0..n { graph.add_node(()); }
 
+    let mut m_reverse = 0;
     let mut u = 1;
     for (_line_idx, line) in lines {
         let line = line?;
@@ -178,12 +181,10 @@ pub fn read_metis<P>(path: P) -> Result<UnGraph<(), ()>, ReadMetisError>
                 return Err(ReadMetisError::ZeroIndex);
             }
             let (u, v) = (NodeIndex::new(u - 1), NodeIndex::new(v - 1));
-            if u < v {
-                graph.add_edge(u, v, ());
-            } else if u == v {
-                return Err(ReadMetisError::SelfLoop(u.index() + 1));
-            } else if graph.find_edge(u, v).is_none() {
-                return Err(ReadMetisError::MissingReverseEdge(u.index() + 1, v.index() + 1));
+            match u.cmp(&v) {
+                Ordering::Less => { graph.add_edge(u, v, ()); }
+                Ordering::Equal => return Err(ReadMetisError::SelfLoop(u.index() + 1)),
+                Ordering::Greater => { m_reverse += 1; }
             }
         }
         u += 1;
@@ -195,6 +196,9 @@ pub fn read_metis<P>(path: P) -> Result<UnGraph<(), ()>, ReadMetisError>
     }
     if graph.edge_count() != m_expected {
         return Err(ReadMetisError::WrongM(graph.edge_count(), m_expected));
+    }
+    if m_reverse != m_expected {
+        return Err(ReadMetisError::NumReverseEdgesNotMatching(m_reverse, m_expected));
     }
 
     Ok(graph)
@@ -284,6 +288,61 @@ pub fn write_md_tree_adj<W: Write>(out: &mut W, md: &DiGraph<MDNodeKind, ()>) ->
     }
     out.flush()?;
     Ok(())
+}
+
+
+pub enum ReadEdgeListError {
+    WrongLineFormat,
+    ParseInt(ParseIntError),
+    IoError(io::Error),
+}
+
+impl From<io::Error> for ReadEdgeListError {
+    fn from(value: io::Error) -> Self { ReadEdgeListError::IoError(value) }
+}
+
+impl From<ParseIntError> for ReadEdgeListError {
+    fn from(value: ParseIntError) -> Self { ReadEdgeListError::ParseInt(value) }
+}
+
+impl Display for ReadEdgeListError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReadEdgeListError::WrongLineFormat => { write!(f, "wrong line format") }
+            ReadEdgeListError::ParseInt(err) => { write!(f, "parse error {err}") }
+            ReadEdgeListError::IoError(err) => { write!(f, "io error {err}") }
+        }
+    }
+}
+
+impl Debug for ReadEdgeListError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{self}") }
+}
+
+impl Error for ReadEdgeListError {}
+
+pub fn read_edgelist<P>(path: P) -> Result<UnGraph<(), ()>, ReadEdgeListError>
+    where P: AsRef<Path> {
+    let file = File::open(path)?;
+
+    let mut n = 0;
+    let mut edges = vec![];
+    for line in io::BufReader::new(file).lines() {
+        let line = line?;
+        let mut tokens = line.split_ascii_whitespace();
+        let Some(a) = tokens.next() else { return Err(ReadEdgeListError::WrongLineFormat); };
+        let Some(b) = tokens.next() else { return Err(ReadEdgeListError::WrongLineFormat); };
+        if tokens.next().is_some() { return Err(ReadEdgeListError::WrongLineFormat); }
+
+        let u: u32 = a.parse()?;
+        let v: u32 = b.parse()?;
+        edges.push((u, v));
+        n = n.max(u + 1).max(v + 1);
+    }
+
+    let mut graph = UnGraph::with_capacity(n as usize, edges.len());
+    graph.extend_with_edges(edges);
+    Ok(graph)
 }
 
 #[cfg(test)]
