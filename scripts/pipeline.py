@@ -73,16 +73,6 @@ run.add("generate_gnm",
         },
         creates_file="[[output]]")
 
-run.add("generate_nx-cograph",
-        "python3 scripts/generate.py nx-cograph [[n]] --seed [[seed]] --output [[output]]",
-        {
-            "n": [2 ** 8, 2 ** 10, 2 ** 12],
-            "seed": list(range(10)),
-            "name": "nx-cograph_n=[[n]]-s=[[seed]]",
-            "output": "data/02-graphs/[[name]]"
-        },
-        creates_file="[[output]]")
-
 run.add("generate_cograph-uni-deg",
         "python3 scripts/generate.py cograph-uni-deg "
         "[[n]] --a [[a]] --b [[b]] --root-kind=[[root_kind]] --seed [[seed]] --output [[output]]",
@@ -93,6 +83,24 @@ run.add("generate_cograph-uni-deg",
             "root_kind": ["series", "parallel"],
             "seed": list(range(10)),
             "name": "cograph-uni-deg_n=[[n]]-a=[[a]]-b=[[b]]-r=[[root_kind]]-s=[[seed]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
+run.add("generate_path",
+        "python3 scripts/generate.py path [[n]] --output [[output]]",
+        {
+            "n": list(range(2 ** 12, 2 ** 16, 2 ** 10)),
+            "name": "path_n=[[n]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
+run.add("generate_cycle",
+        "python3 scripts/generate.py cycle [[n]] --output [[output]]",
+        {
+            "n": list(range(2 ** 12, 2 ** 16, 2 ** 10)),
+            "name": "cycle_n=[[n]]",
             "output": "data/02-graphs/[[name]]"
         },
         creates_file="[[output]]")

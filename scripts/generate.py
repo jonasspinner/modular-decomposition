@@ -100,11 +100,6 @@ def main():
     gnm_parser.add_argument("--seed", type=int, required=True)
     gnm_parser.add_argument("--output", type=Path, required=True)
 
-    nx_cograph_parser = subparsers.add_parser("nx-cograph")
-    nx_cograph_parser.add_argument("n", type=int)
-    nx_cograph_parser.add_argument("--seed", type=int, required=True)
-    nx_cograph_parser.add_argument("--output", type=Path, required=True)
-
     cograph_uni_deg_parser = subparsers.add_parser("cograph-uni-deg")
     cograph_uni_deg_parser.add_argument("n", type=int)
     cograph_uni_deg_parser.add_argument("--a", type=int, default=2)
@@ -112,6 +107,14 @@ def main():
     cograph_uni_deg_parser.add_argument("--root-kind", choices=["series", "parallel", "random"], default="random")
     cograph_uni_deg_parser.add_argument("--seed", type=int, required=True)
     cograph_uni_deg_parser.add_argument("--output", type=Path, required=True)
+
+    path_parser = subparsers.add_parser("path")
+    path_parser.add_argument("n", type=int)
+    path_parser.add_argument("--output", type=Path, required=True)
+
+    cycle_parser = subparsers.add_parser("cycle")
+    cycle_parser.add_argument("n", type=int)
+    cycle_parser.add_argument("--output", type=Path, required=True)
 
     args = parser.parse_args()
 
@@ -123,21 +126,24 @@ def main():
         graph = nx.gnm_random_graph(n, m, seed, directed=False)
         with args.output.open("w") as f:
             write_metis(f, graph)
-    elif args.generator == "nx-cograph":
-        n, seed = args.n, args.seed
-        log_n = int(np.log2(n))
-        assert 0 <= n
-        assert 2 ** log_n == n
-        assert 0 <= seed < 2 ** 32
-        graph = nx.random_cograph(log_n, seed)
-        with args.output.open("w") as f:
-            write_metis(f, graph)
     elif args.generator == "cograph-uni-deg":
         n, a, b, root_kind, seed = args.n, args.a, args.b, args.root_kind, args.seed
         assert 0 <= n
         assert 2 <= a <= b
         assert 0 <= seed < 2 ** 32
         graph = random_cograph_uni_deg(n, a, b, root_kind, seed)
+        with args.output.open("w") as f:
+            write_metis(f, graph)
+    elif args.generator == "path":
+        n = args.n
+        assert 0 <= n
+        graph = nx.path_graph(n)
+        with args.output.open("w") as f:
+            write_metis(f, graph)
+    elif args.generator == "cycle":
+        n = args.n
+        assert 0 <= n
+        graph = nx.cycle_graph(n)
         with args.output.open("w") as f:
             write_metis(f, graph)
     else:
