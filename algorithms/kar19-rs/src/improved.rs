@@ -259,8 +259,8 @@ pub(crate) fn build_tree(graph: &UnGraph<(), ()>, op: &[usize], cl: &[usize], p:
     t
 }
 
-mod factorizing_permutation {
-    use std::collections::{HashMap, VecDeque};
+pub(crate) mod factorizing_permutation {
+    use std::collections::{HashMap, HashSet, VecDeque};
     use std::ops::Range;
     use petgraph::graph::{NodeIndex, UnGraph};
     use common::make_index;
@@ -291,7 +291,7 @@ mod factorizing_permutation {
         #[allow(non_snake_case)]
         fn partition_refinement(&mut self) {
             while self.init_partition() {
-                while let Some(E) = self.pivots.pop() {
+                while let Some(E) = self.pop_pivot() {
                     for x_pos in E.positions() {
                         let x = self.node(x_pos).node;
                         self.refine(x, E);
@@ -304,10 +304,10 @@ mod factorizing_permutation {
         fn init_partition(&mut self) -> bool {
             let Some(non_singleton) = self.next_non_singleton() else { return false; };
 
-            if let Some(X) = self.modules.pop_front() {
+            if let Some(X) = self.pop_front_module() {
                 let x_pos = X.first().unwrap();
                 let x = self.node(x_pos).node;
-                self.pivots.push(Seq { first: x_pos, len: 1 });
+                self.push_pivot(Seq { first: x_pos, len: 1 });
                 self.first_pivot.insert(X, x);
             } else {
                 let X_idx = non_singleton;
@@ -349,8 +349,8 @@ mod factorizing_permutation {
 
                 let (S, L) = if A.len <= N.len { (A, N) } else { (N, A) };
                 self.center_pos = x_pos;
-                self.pivots.push(S);
-                self.modules.push_back(L);
+                self.push_pivot(S);
+                self.push_back_module(L);
             }
             true
         }
@@ -407,18 +407,40 @@ mod factorizing_permutation {
 
         #[allow(non_snake_case)]
         fn add_pivot(&mut self, X: Seq, X_a: Seq) {
-            if self.pivots.contains(&X) {
-                self.pivots.push(X_a);
+            if self.pivots_h.contains(&X) {
+                self.push_pivot(X_a);
             } else {
-                let i = self.modules.iter().position(|Y| Y == &X);
+                let i = if self.modules_h.contains(&X) { self.modules.iter().position(|Y| Y == &X) } else { None };
                 let (S, L) = if X.len <= X_a.len { (X, X_a) } else { (X_a, X) };
-                self.pivots.push(S);
+                self.push_pivot(S);
                 if let Some(i) = i {
                     self.modules[i] = L;
+                    self.modules_h.remove(&X);
+                    self.modules_h.insert(L);
                 } else {
-                    self.modules.push_back(L);
+                    self.push_back_module(L);
                 }
             }
+        }
+
+
+        fn push_pivot(&mut self, pivot: Seq) {
+            self.pivots.push(pivot);
+            self.pivots_h.insert(pivot);
+        }
+        fn pop_pivot(&mut self) -> Option<Seq> {
+            let pivot = self.pivots.pop()?;
+            self.pivots_h.remove(&pivot);
+            Some(pivot)
+        }
+        fn push_back_module(&mut self, module: Seq) {
+            self.modules.push_back(module);
+            self.modules_h.insert(module);
+        }
+        fn pop_front_module(&mut self) -> Option<Seq> {
+            let module = self.modules.pop_front()?;
+            self.modules_h.remove(&module);
+            Some(module)
         }
 
 
@@ -453,8 +475,8 @@ mod factorizing_permutation {
                 self.remove_if_empty(part);
             }
 
-            assert!(self.part(self.node(u_pos).part).seq.contains(u_pos));
-            assert!(self.part(self.node(last).part).seq.contains(last));
+            debug_assert!(self.part(self.node(u_pos).part).seq.contains(u_pos));
+            debug_assert!(self.part(self.node(last).part).seq.contains(last));
         }
 
         fn insert_left(&mut self, u_pos: NodePos) {
@@ -477,8 +499,8 @@ mod factorizing_permutation {
                 self.remove_if_empty(part);
             }
 
-            assert!(self.part(self.node(u_pos).part).seq.contains(u_pos));
-            assert!(self.part(self.node(first).part).seq.contains(first));
+            debug_assert!(self.part(self.node(u_pos).part).seq.contains(u_pos));
+            debug_assert!(self.part(self.node(first).part).seq.contains(first));
         }
 
         fn swap_nodes(&mut self, a: NodePos, b: NodePos) {
@@ -488,8 +510,8 @@ mod factorizing_permutation {
             self.positions.swap(u.index(), v.index());
             self.nodes.swap(a.index(), b.index());
 
-            assert_eq!(self.node(self.position(u)).node, u);
-            assert_eq!(self.node(self.position(v)).node, v);
+            debug_assert_eq!(self.node(self.position(u)).node, u);
+            debug_assert_eq!(self.node(self.position(v)).node, v);
         }
 
         fn part(&self, idx: PartIndex) -> &Part { &self.parts[idx.index()] }
@@ -553,6 +575,9 @@ mod factorizing_permutation {
         first_pivot: HashMap<Seq, NodeIndex>,
         center_pos: NodePos,
         non_singleton_idx: NodePos,
+
+        pivots_h: HashSet<Seq>,
+        modules_h: HashSet<Seq>,
     }
 
     impl<'a> State<'a> {
@@ -570,8 +595,10 @@ mod factorizing_permutation {
             let first_pivot = HashMap::new();
             let center_pos = NodePos(u32::MAX);
             let non_singleton_idx = NodePos::new(0);
+            let pivots_h = HashSet::new();
+            let modules_h = HashSet::new();
 
-            State { graph, positions, nodes, parts, removed, gen, pivots, modules, first_pivot, center_pos, non_singleton_idx }
+            State { graph, positions, nodes, parts, removed, gen, pivots, modules, first_pivot, center_pos, non_singleton_idx, pivots_h, modules_h }
         }
 
         fn into_permutation(self) -> Permutation {
