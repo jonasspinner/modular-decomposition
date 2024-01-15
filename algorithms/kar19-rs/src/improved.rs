@@ -20,9 +20,9 @@ pub(crate) fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKi
 
     build_parenthesizing(graph, &mut op, &mut cl, &mut lc, &mut uc, &p);
 
-    info!(n, op = op.iter().sum::<usize>(), cl = cl.iter().sum::<usize>());
+    info!(n);
 
-    remove_non_module_dummy_nodes(&mut op, &mut cl, &mut lc, &mut uc);
+    remove_non_module_dummy_nodes(&mut op, &mut cl, &lc, &uc);
 
     shared::create_consecutive_twin_nodes(&mut op, &mut cl, &lc, &uc);
 
@@ -36,19 +36,20 @@ pub(crate) fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKi
 }
 
 #[instrument(skip_all)]
-fn factorizing_permutation(graph: &UnGraph<(), ()>) -> Permutation {
+pub(crate) fn factorizing_permutation(graph: &UnGraph<(), ()>) -> Permutation {
     factorizing_permutation::factorizing_permutation(graph)
 }
 
 #[instrument(skip_all)]
-fn build_parenthesizing(graph: &UnGraph<(), ()>, op: &mut [usize], cl: &mut [usize], lc: &mut [usize], uc: &mut [usize], p: &Permutation) {
-    let get_neighbor_positions = |idx: usize| -> Vec<usize> {
-        let mut pos: Vec<_> = graph.neighbors(p[idx]).map(|v| p.position(v)).collect();
-        pos.sort();
-        pos
+pub(crate) fn build_parenthesizing(graph: &UnGraph<(), ()>, op: &mut [usize], cl: &mut [usize], lc: &mut [usize], uc: &mut [usize], p: &Permutation) {
+    let get_neighbor_positions = |idx: usize, positions: &mut Vec<usize>| {
+        positions.clear();
+        positions.extend(graph.neighbors(p[idx]).map(|v| p.position(v)));
+        positions.sort();
     };
-    let mut pos_j0;
-    let mut pos_j1 = get_neighbor_positions(0);
+    let mut pos_j0 = vec![];
+    let mut pos_j1 = vec![];
+    get_neighbor_positions(0, &mut pos_j1);
 
     fn merge_iter_next<'a>(mut a: impl Iterator<Item=&'a usize>, mut b: impl Iterator<Item=&'a usize>, f: impl Fn(usize, usize) -> usize) -> Option<usize> {
         loop {
@@ -70,13 +71,14 @@ fn build_parenthesizing(graph: &UnGraph<(), ()>, op: &mut [usize], cl: &mut [usi
 
     let n = p.len();
     for j in 0..n - 1 {
-        pos_j0 = std::mem::replace(&mut pos_j1, get_neighbor_positions(j + 1));
+        std::mem::swap(&mut pos_j0, &mut pos_j1);
+        get_neighbor_positions(j + 1, &mut pos_j1);
+
         let mut lc_idx = first(&pos_j0, &pos_j1);
         let mut uc_idx = if lc_idx.is_some() { last(&pos_j0, &pos_j1) } else { None };
         lc_idx = lc_idx.filter(|i| *i < j);
         uc_idx = uc_idx.filter(|i| *i > j + 1);
-        //println!("{:?} {:?}", pos_j0, pos_j1);
-        //println!("# {j} {:?} {:?} {:?}", min_i, max_i, HashSet::<usize>::from_iter(pos_j0).symmetric_difference(&HashSet::<usize>::from_iter(pos_j1.iter().copied())).collect::<Vec<_>>());
+
         if let Some(i) = lc_idx {
             assert!(i < j);
             debug_assert_ne!(graph.find_edge(p[i], p[j]).is_some(), graph.find_edge(p[i], p[j + 1]).is_some());
@@ -94,39 +96,101 @@ fn build_parenthesizing(graph: &UnGraph<(), ()>, op: &mut [usize], cl: &mut [usi
     }
 }
 
+
+pub(crate) struct BuildStack<T> {
+    values: Vec<T>,
+    starts: Vec<(u32, u32)>,
+    len: usize,
+}
+
+impl<T> BuildStack<T> {
+    pub(crate) fn new() -> Self {
+        Self { values: vec![], starts: vec![(0, 1)], len: 0 }
+    }
+    pub(crate) fn extend(&mut self, n: usize) {
+        let start = self.values.len() as u32;
+        if n > 0 { self.starts.push((start, n as u32)); }
+    }
+    pub(crate) fn add(&mut self, value: T) {
+        self.values.truncate(self.len);
+        self.values.push(value);
+        self.len += 1;
+    }
+    pub(crate) fn pop(&mut self) -> &[T] {
+        let (i, last_count) = self.starts.last_mut().unwrap();
+        let i = *i as usize;
+        *last_count -= 1;
+        if *last_count == 0 { self.starts.pop().unwrap(); }
+        self.len = i;
+        &self.values[i..]
+    }
+    pub(crate) fn is_empty(&self) -> bool { self.starts.is_empty() }
+}
+
 #[instrument(skip_all)]
-fn remove_non_module_dummy_nodes(op: &mut [usize], cl: &mut [usize], lc: &mut [usize], uc: &mut [usize]) {
-    let n = op.len();
-    let mut s = Vec::with_capacity(n);
-    for j in 0..n {
-        s.push((j, op[j]));
-        let mut k = cl[j];
-        while k > 0 {
-            let (i, count) = s.pop().unwrap();
-            if i < j {
-                let l = (i..j).map(|k| lc[k]).min().unwrap();
-                let u = (i..j).map(|k| uc[k]).max().unwrap();
-                if i <= l && u <= j {
-                    if k >= count { k -= count; } else {
-                        s.push((i, count - k));
-                        break;
-                    }
-                    continue;
-                }
-            }
-            op[i] -= count.min(k);
-            cl[j] -= count.min(k);
-            if k >= count { k -= count; } else {
-                s.push((i, count - k));
-                break;
-            }
+pub(crate) fn remove_non_module_dummy_nodes(op: &mut [usize], cl: &mut [usize], lc: &[usize], uc: &[usize]) {
+    #[derive(Clone)]
+    struct Info {
+        first_vertex: u32,
+        last_vertex: u32,
+        first_cutter: u32,
+        last_cutter: u32,
+    }
+    impl Info {
+        fn new(first_vertex: u32, last_vertex: u32, first_cutter: u32, last_cutter: u32) -> Self {
+            Self { first_vertex, last_vertex, first_cutter, last_cutter }
         }
     }
+    fn create_vertex_node(position: usize) -> Info {
+        let pos = position as u32;
+        Info::new(pos, pos, pos, pos)
+    }
+
+    let create_inner_node = |op: &mut [usize], cl: &mut [usize], nodes: &[Info]| -> Info {
+        let k = nodes.len();
+
+        assert!((0..k - 1).all(|i| nodes[i].last_vertex + 1 == nodes[i + 1].first_vertex));
+
+        let first_vertex = nodes[0].first_vertex;
+        let last_vertex = nodes[k - 1].last_vertex;
+        let first_cutter = u32::min(
+            first_vertex,
+            nodes[0..k - 1].iter().map(|n| lc[n.last_vertex as usize] as u32)
+                .chain(nodes.iter().map(|n| n.first_cutter)).min().unwrap_or(first_vertex));
+        let last_cutter = u32::max(
+            last_vertex,
+            nodes[0..k - 1].iter().map(|n| uc[n.last_vertex as usize] as u32)
+                .chain(nodes.iter().map(|n| n.last_cutter)).max().unwrap_or(last_vertex));
+
+        let info = Info::new(first_vertex, last_vertex, first_cutter, last_cutter);
+        if first_vertex < last_vertex && first_vertex <= first_cutter && last_cutter <= last_vertex {
+            return info;
+        }
+        assert!(op[info.first_vertex as usize] >= 1);
+        assert!(cl[info.last_vertex as usize] >= 1);
+        op[info.first_vertex as usize] -= 1;
+        cl[info.last_vertex as usize] -= 1;
+        info
+    };
+
+
+    let mut s = BuildStack::new();
+    for j in 0..op.len() {
+        s.extend(op[j]);
+        s.add(create_vertex_node(j));
+        for _ in 0..cl[j] {
+            let info = create_inner_node(op, cl, s.pop());
+            s.add(info);
+        }
+    }
+    create_inner_node(op, cl, s.pop());
+    debug_assert_eq!(op.iter().sum::<usize>(), cl.iter().sum());
+    assert!(s.is_empty());
 }
 
 #[instrument(skip_all)]
 #[allow(unreachable_code)]
-fn build_tree(graph: &UnGraph<(), ()>, op: &[usize], cl: &[usize], p: &Permutation) -> DiGraph<MDNodeKind, ()> {
+pub(crate) fn build_tree(graph: &UnGraph<(), ()>, op: &[usize], cl: &[usize], p: &Permutation) -> DiGraph<MDNodeKind, ()> {
     let n = graph.node_count();
 
     // Calculate the degrees between children of a module.
@@ -154,18 +218,18 @@ fn build_tree(graph: &UnGraph<(), ()>, op: &[usize], cl: &[usize], p: &Permutati
         let degree_sum = degrees.iter().sum::<usize>();
         assert!(degree_sum <= n * (n - 1));
         let kind = if degree_sum == 0 { MDNodeKind::Parallel } else if degree_sum == n * (n - 1) { MDNodeKind::Series } else { MDNodeKind::Prime };
-        let idx = t.add_node(kind);
 
+        let idx = if let Some((_, u)) =
+            nodes.iter()
+                .find(|(_, u)| t[*u] == kind && kind != MDNodeKind::Prime) {
+            // TODO: investigate
+            // panic!("This case does not seem to occur. Weird.");
+            *u
+        } else {
+            t.add_node(kind)
+        };
         for (_, u) in nodes {
-            if t[*u] == kind && kind != MDNodeKind::Prime {
-                // TODO: investigate
-                // panic!("This case does not seem to occur. Weird.");
-                let children: Vec<_> = t.neighbors(*u).collect();
-                for v in children {
-                    t.add_edge(idx, v, ());
-                }
-                t.remove_node(*u);
-            } else {
+            if *u != idx {
                 t.add_edge(idx, *u, ());
             }
         }
@@ -179,19 +243,19 @@ fn build_tree(graph: &UnGraph<(), ()>, op: &[usize], cl: &[usize], p: &Permutati
     };
 
     let mut t = DiGraph::new();
-    let mut s = vec![vec![]];
 
+    let mut s = BuildStack::new();
     for (j, x) in p.iter().enumerate() {
-        s.extend(std::iter::repeat(vec![]).take(op[j]));
+        s.extend(op[j]);
         let (x, idx) = (x, t.add_node(MDNodeKind::Vertex(x.index())));
-        s.last_mut().unwrap().push((x, idx));
+        s.add((x, idx));
         for _ in 0..cl[j] {
-            let nodes = s.pop().unwrap();
-            let (x, idx) = add_node(&mut t, &nodes);
-            s.last_mut().unwrap().push((x, idx));
+            let (x, idx) = add_node(&mut t, s.pop());
+            s.add((x, idx));
         }
     }
-    add_node(&mut t, &s.pop().unwrap());
+    add_node(&mut t, s.pop());
+    assert!(s.is_empty());
     t
 }
 
