@@ -8,7 +8,8 @@ use petgraph::visit::IntoNodeReferences;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::FmtSubscriber;
-use common::io::{GraphFileType, read_metis, read_pace2023, write_md_tree_adj};
+use tracing_subscriber::util::SubscriberInitExt;
+use common::io::{GraphFileType, read_edgelist, read_metis, read_pace2023, write_md_tree_adj};
 use common::modular_decomposition::MDNodeKind;
 
 
@@ -41,7 +42,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     let graph = match cli.input_type {
         GraphFileType::Pace2023 => read_pace2023(&cli.input)?,
-        GraphFileType::Metis => read_metis(&cli.input)?
+        GraphFileType::Metis => read_metis(&cli.input)?,
+        GraphFileType::EdgeList => read_edgelist(&cli.input)?,
     };
 
     if let Some(level) = cli.log_level {
@@ -50,8 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_span_events(FmtSpan::CLOSE)
             .finish();
 
-        tracing::subscriber::set_global_default(subscriber)
-            .expect("setting default subscriber failed");
+        subscriber.init();
     };
 
     let (t, md) = match cli.algo {
