@@ -142,10 +142,10 @@ run.add(f"analyze_graphs",
 run.group("experiments")
 
 names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
-algos = ["miz23-rust", "miz23-cpp", "ms00", "kar19-rust"]
+algos = ["kar19-rust", "miz23-rust", "miz23-cpp", "ms00"]
 for algo in algos:
-    (Path("data/02-graphs") / algo).mkdir(exist_ok=True, parents=True)
     (Path("data/04-algo-runs") / algo).mkdir(exist_ok=True, parents=True)
+    (Path("data/05-md-trees") / algo).mkdir(exist_ok=True, parents=True)
 run.add("md",
         "cargo run --bin md --release -- "
         "--algo [[algo]] --input-type metis "
