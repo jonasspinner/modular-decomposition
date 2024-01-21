@@ -3,7 +3,7 @@ use common::make_index;
 use crate::seq::algos::Kind::{Parallel, Prime, Series, UnderConstruction};
 use crate::seq::graph::{Graph, NodeIndex};
 use crate::seq::ordered_vertex_partition::ovp;
-use crate::seq::partition::{Partition, Part, SubPartition, PartIndex};
+use crate::seq::partition::{Partition, Part, SubPartition};
 #[allow(unused)]
 use crate::seq::testing::to_vecs;
 use crate::trace;
@@ -89,7 +89,7 @@ fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<Tre
         assert_eq!(subpartition.parts(partition).count(), 2);
 
         let mut num_edges = 0;
-        ovp(graph, partition, |e| { num_edges += e.len() });
+        ovp(graph, subpartition.clone(), partition, |e| { num_edges += e.len() });
 
         let xs: Vec<_> = subpartition.parts(partition).collect();
         tree[current.index()].kind = determine_node_kind(&xs, num_edges);
@@ -110,7 +110,7 @@ fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Vec<TreeNode>, current: Tre
     let mut partition = Partition::new(graph.node_count());
 
     partition.refine_forward([v]);
-    ovp(graph, &mut partition, |_| {});
+    ovp(graph, partition.full_sub_partition(), &mut partition, |_| {});
 
     graph.restore_removed_edges();
 
@@ -186,7 +186,7 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p0: Part, partition: &mut
         }
 
         let p = p.singleton(partition, v);
-        ovp(graph, partition, |e| { removed.extend(e.iter().map(|&(u, v, _)| (u, v))) });
+        ovp(graph, p.clone(), partition, |e| { removed.extend(e.iter().map(|&(u, v, _)| (u, v))) });
 
         let (mut quotient, v_q, mut ys) = build_quotient(&mut removed, p.clone(), partition, v);
 
