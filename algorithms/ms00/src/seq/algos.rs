@@ -3,7 +3,7 @@ use common::make_index;
 use crate::seq::algos::Kind::{Parallel, Prime, Series, UnderConstruction};
 use crate::seq::graph::{Graph, NodeIndex};
 use crate::seq::ordered_vertex_partition::ovp;
-use crate::seq::partition::{Partition, Part, SubPartition};
+use crate::seq::partition::{Partition, Part, SubPartition, PartIndex};
 #[allow(unused)]
 use crate::seq::testing::to_vecs;
 use crate::trace;
@@ -142,17 +142,17 @@ fn collect_leaves(tree: &[TreeNode], root: TreeNodeIndex) -> Vec<(TreeNodeIndex,
 fn build_quotient(mut removed: Vec<(NodeIndex, NodeIndex)>,
                   p: SubPartition, partition: &Partition,
                   inner_vertex: NodeIndex) -> (Graph, NodeIndex, Vec<(Part, TreeNodeIndex)>) {
-    let mut new_part_ids = HashMap::new();
+    let mut new_part_ids = HashMap::with_hasher(nohash_hasher::BuildNoHashHasher::<u32>::default());
     let mut ys = vec![];
     let mut n_quotient = NodeIndex::new(0);
     for part in p.part_indices(partition) {
-        new_part_ids.insert(part, n_quotient);
+        new_part_ids.insert(part.index() as u32, n_quotient);
         ys.push((partition.part_by_index(part), TreeNodeIndex::invalid()));
         n_quotient = (u32::from(n_quotient) + 1).into();
     }
 
     let map = |x: NodeIndex| {
-        *new_part_ids.get(&partition.part_by_node(x)).unwrap()
+        *new_part_ids.get(&(partition.part_by_node(x).index() as u32)).unwrap()
     };
 
     for (u, v) in &mut removed {
