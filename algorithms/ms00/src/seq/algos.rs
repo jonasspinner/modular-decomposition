@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use common::make_index;
-use crate::seq::algos::Kind::{Parallel, Prime, Series, UnderConstruction};
+use crate::seq::algos::Kind::{Parallel, Prime, Series};
 use crate::seq::graph::{Graph, NodeIndex};
 use crate::seq::ordered_vertex_partition::ovp;
 use crate::seq::partition::{Partition, Part, SubPartition};
@@ -124,16 +124,15 @@ fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Vec<TreeNode>, current: Tre
 }
 
 
-fn collect_leaves(tree: &[TreeNode], root: TreeNodeIndex) -> Vec<(TreeNodeIndex, NodeIndex)> {
-    let mut leaves = vec![];
+fn for_leaves(tree: &[TreeNode], root: TreeNodeIndex, mut f: impl FnMut((TreeNodeIndex, NodeIndex))) {
     let mut stack = vec![root];
     while let Some(node) = stack.pop() {
         if let Kind::Vertex(u) = tree[node.index()].kind {
-            leaves.push((node, u));
+            f((node, u));
+        } else {
+            stack.extend(tree[node.index()].children.iter().copied());
         }
-        stack.extend(tree[node.index()].children.iter().copied());
     }
-    leaves
 }
 
 fn build_quotient(removed: &mut Vec<(NodeIndex, NodeIndex)>,
@@ -192,10 +191,9 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p0: Part, partition: &mut
 
         chain(&mut quotient, v_q, tree, current);
 
-        for (j, v) in collect_leaves(tree, current) {
+        for_leaves(tree, current, |(j, v)| {
             ys[v.index()].1 = j;
-            tree[j.index()].kind = UnderConstruction;
-        }
+        });
 
         stack.extend(ys);
     }
