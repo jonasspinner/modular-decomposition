@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 use petgraph::visit::EdgeRef;
 use common::instances::ted08_test0;
-use crate::seq::graph::{Graph, NodeIndex};
-use crate::seq::partition::{Partition, SubPartition};
+use crate::graph::{Graph, NodeIndex};
+use crate::partition::{Partition, SubPartition};
 
 pub(crate) fn splitters<'a>(graph: &Graph, set: &'a [NodeIndex]) -> impl Iterator<Item=NodeIndex> + 'a {
     let mut iter = set.iter();

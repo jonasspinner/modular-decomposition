@@ -1,5 +1,5 @@
-use crate::seq::graph::{EdgeIndex, Graph, NodeIndex};
-use crate::seq::partition::{divide, PartIndex, Partition, SubPartition};
+use crate::graph::{EdgeIndex, Graph, NodeIndex};
+use crate::partition::{divide, PartIndex, Partition, SubPartition};
 
 fn crossing_edges(graph: &mut Graph, x: PartIndex, partition: &Partition) -> Vec<(NodeIndex, NodeIndex, EdgeIndex)> {
     let mut e = vec![];
@@ -108,9 +108,9 @@ mod test {
     use std::path::Path;
     use petgraph::visit::EdgeRef;
     use common::io::read_pace2023;
-    use crate::seq::graph::{Graph, NodeIndex};
-    use crate::seq::partition::Partition;
-    use crate::seq::testing::{splitters, ted08_test0_graph, to_vecs};
+    use crate::graph::{Graph, NodeIndex};
+    use crate::partition::Partition;
+    use crate::testing::{splitters, ted08_test0_graph, to_vecs};
 
     #[test]
     fn partition() {

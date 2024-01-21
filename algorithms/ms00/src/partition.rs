@@ -1,6 +1,6 @@
 use std::iter::from_fn;
 use std::ops::{AddAssign, SubAssign};
-use crate::seq::graph::NodeIndex;
+use crate::graph::NodeIndex;
 use common::make_index;
 
 make_index!(pub(crate) PartIndex);

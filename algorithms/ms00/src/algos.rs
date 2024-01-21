@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use common::make_index;
-use crate::seq::algos::Kind::{Parallel, Prime, Series};
-use crate::seq::graph::{Graph, NodeIndex};
-use crate::seq::ordered_vertex_partition::ovp;
-use crate::seq::partition::{Partition, Part, SubPartition};
+use crate::algos::Kind::{Parallel, Prime, Series};
+use crate::graph::{Graph, NodeIndex};
+use crate::ordered_vertex_partition::ovp;
+use crate::partition::{Partition, Part, SubPartition};
 #[allow(unused)]
-use crate::seq::testing::to_vecs;
+use crate::testing::to_vecs;
 use crate::trace;
 
 fn rop_find_w(graph: &mut Graph, p: &Part, partition: &mut Partition) -> NodeIndex {
@@ -202,10 +202,10 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p0: Part, partition: &mut
 
 #[cfg(test)]
 mod test {
-    use crate::seq::algos::{chain, Kind, TreeNode, TreeNodeIndex};
-    use crate::seq::graph::{Graph, NodeIndex};
-    use crate::seq::partition::{Part, Partition};
-    use crate::seq::testing::ted08_test0_graph;
+    use crate::algos::{chain, Kind, TreeNode, TreeNodeIndex};
+    use crate::graph::{Graph, NodeIndex};
+    use crate::partition::{Part, Partition};
+    use crate::testing::ted08_test0_graph;
 
     #[test]
     fn modular_decomposition() {

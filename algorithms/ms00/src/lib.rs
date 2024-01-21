@@ -3,10 +3,13 @@
 use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
 use petgraph::visit::EdgeRef;
 use common::modular_decomposition::MDNodeKind;
-use crate::seq::algos::{Kind, TreeNode, TreeNodeIndex};
+use crate::algos::{Kind, TreeNode, TreeNodeIndex};
 
-mod linked_list;
-mod seq;
+pub(crate) mod graph;
+pub(crate) mod partition;
+mod ordered_vertex_partition;
+pub(crate) mod algos;
+mod testing;
 
 #[macro_export]
 macro_rules! trace {
@@ -17,19 +20,19 @@ macro_rules! trace {
 
 
 pub struct Prepared {
-    graph: seq::graph::Graph,
-    partition: seq::partition::Partition,
+    graph: graph::Graph,
+    partition: partition::Partition,
 }
 
 pub fn prepare<N, E>(graph: &UnGraph<N, E>) -> Prepared
 {
     let edges: Vec<_> = graph.edge_references().map(|e| {
-        let u = seq::graph::NodeIndex::new(e.source().index());
-        let v = seq::graph::NodeIndex::new(e.target().index());
+        let u = graph::NodeIndex::new(e.source().index());
+        let v = graph::NodeIndex::new(e.target().index());
         (u, v)
     }).collect();
-    let graph = seq::graph::Graph::from_edges(graph.node_count(), edges.iter().copied());
-    let partition = seq::partition::Partition::new(graph.node_count());
+    let graph = graph::Graph::from_edges(graph.node_count(), edges.iter().copied());
+    let partition = partition::Partition::new(graph.node_count());
     Prepared { graph, partition }
 }
 
@@ -40,13 +43,13 @@ pub struct Computed {
 impl Prepared {
     pub fn compute(mut self) -> Computed
     {
-        let p = seq::partition::Part::new(&self.partition);
+        let p = partition::Part::new(&self.partition);
         let mut tree = Vec::with_capacity(2 * self.graph.node_count());
 
         if self.graph.node_count() != 0 {
-            let root = seq::algos::TreeNodeIndex::new(0);
-            tree.push(seq::algos::TreeNode::default());
-            seq::algos::modular_decomposition(&mut self.graph, p, &mut self.partition, &mut tree, root);
+            let root = TreeNodeIndex::new(0);
+            tree.push(TreeNode::default());
+            algos::modular_decomposition(&mut self.graph, p, &mut self.partition, &mut tree, root);
         }
         Computed { tree }
     }
