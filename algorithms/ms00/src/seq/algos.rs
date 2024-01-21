@@ -49,16 +49,15 @@ impl Default for TreeNode {
 }
 
 fn determine_node_kind(xs: &[Part], num_edges: usize) -> Kind {
-    let mut num_all_inter_part_edges = 0;
-    'outer: for (i, x) in xs.iter().enumerate() {
-        for y in &xs[i + 1..] {
-            num_all_inter_part_edges += x.len() * y.len();
-            if num_all_inter_part_edges > num_edges { break 'outer; }
-        }
-    }
-    trace!("determine_node_kind  0 <= {} <= {}", num_edges, num_all_inter_part_edges);
-    assert!(num_edges <= num_all_inter_part_edges);
-    if num_edges == num_all_inter_part_edges {
+    let num_edges = num_edges * 2; // we count edges twice in the following calculations
+
+    let (num_nodes, max_num_intra_cluster_edges) = xs.iter()
+        .fold((0, 0), |(n1, n2), x| (n1 + x.len(), n2 + x.len() * x.len()));
+    let max_num_edges = num_nodes.pow(2);
+    let max_num_inter_cluster_edges = max_num_edges - max_num_intra_cluster_edges;
+    assert!(num_edges <= max_num_inter_cluster_edges);
+
+    if num_edges == max_num_inter_cluster_edges {
         Series
     } else if num_edges == 0 {
         Parallel
@@ -77,33 +76,30 @@ fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<Tre
     //   foreach set X_i do Let ROP(G|X_i) be the i_th child of V(G)
     // return T
 
-    if p.len() == 1 {
-        let w = partition.nodes(&p.into())[0].node;
-        tree[current.index()].kind = Kind::Vertex(w);
-        return;
-    }
+    let mut stack = vec![(p, current)];
+    while let Some((part, current)) = stack.pop() {
+        if part.len() == 1 {
+            let w = partition.nodes(&part.into())[0].node;
+            tree[current.index()].kind = Kind::Vertex(w);
+            continue;
+        }
 
-    let w = rop_find_w(graph, &p, partition);
-    let p = p.singleton(partition, w);
+        let w = rop_find_w(graph, &part, partition);
+        let subpartition = part.singleton(partition, w);
+        assert_eq!(subpartition.parts(partition).count(), 2);
 
-    trace!("rop:partition:0 {:?}", to_vecs(&p.clone(), partition));
+        let mut num_edges = 0;
+        ovp(graph, partition, |e| { num_edges += e.len() });
 
-    let mut num_edges = 0;
-    ovp(graph, partition, |e| { num_edges += e.len() });
+        let xs: Vec<_> = subpartition.parts(partition).collect();
+        tree[current.index()].kind = determine_node_kind(&xs, num_edges);
 
-    trace!("rop:partition:1 {:?}", to_vecs(&p.clone(), partition));
-    trace!("rop:removed:len {}", num_edges);
-
-    let xs: Vec<_> = p.parts(partition).collect();
-    trace!("rop:parts:len {}", xs.len());
-    let kind = determine_node_kind(&xs, num_edges);
-    trace!("rop:kind {:?}", kind);
-    tree[current.index()].kind = kind;
-    for x in xs {
-        let t_x = TreeNodeIndex::new(tree.len());
-        tree.push(TreeNode { kind: UnderConstruction, children: vec![] });
-        tree[current.index()].children.push(t_x);
-        rop(graph, x, partition, tree, t_x);
+        for x in xs {
+            let t_x = TreeNodeIndex::new(tree.len());
+            tree.push(TreeNode::default());
+            tree[current.index()].children.push(t_x);
+            stack.push((x, t_x));
+        }
     }
 }
 
@@ -129,17 +125,18 @@ fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Vec<TreeNode>, current: Tre
 
 
 fn collect_leaves(tree: &[TreeNode], root: TreeNodeIndex) -> Vec<(TreeNodeIndex, NodeIndex)> {
-    if let Kind::Vertex(u) = tree[root.index()].kind {
-        return vec![(root, u)];
+    let mut leaves = vec![];
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if let Kind::Vertex(u) = tree[node.index()].kind {
+            leaves.push((node, u));
+        }
+        stack.extend(tree[node.index()].children.iter().copied());
     }
-    let mut res = vec![];
-    for &child in &tree[root.index()].children {
-        res.append(&mut collect_leaves(tree, child));
-    }
-    res
+    leaves
 }
 
-fn build_quotient(mut removed: Vec<(NodeIndex, NodeIndex)>,
+fn build_quotient(removed: &mut Vec<(NodeIndex, NodeIndex)>,
                   p: SubPartition, partition: &Partition,
                   inner_vertex: NodeIndex) -> (Graph, NodeIndex, Vec<(Part, TreeNodeIndex)>) {
     let mut new_part_ids = HashMap::with_hasher(nohash_hasher::BuildNoHashHasher::<u32>::default());
@@ -155,16 +152,16 @@ fn build_quotient(mut removed: Vec<(NodeIndex, NodeIndex)>,
         *new_part_ids.get(&(partition.part_by_node(x).index() as u32)).unwrap()
     };
 
-    for (u, v) in &mut removed {
+    for (u, v) in removed.iter_mut() {
         *u = map(*u);
         *v = map(*v);
     }
     removed.sort();
     removed.dedup();
-    (Graph::from_edges(n_quotient.index(), removed), map(inner_vertex), ys)
+    (Graph::from_edges(n_quotient.index(), removed.iter().copied()), map(inner_vertex), ys)
 }
 
-pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
+pub(crate) fn modular_decomposition(graph: &mut Graph, p0: Part, partition: &mut Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
     //println!("modular_decomposition:0 {} {} {}", graph.node_count(), p.start().index(), p.len());
     trace!("modular_decomposition:parts:0  {:?}", to_vecs(&p.clone().into(), partition));
     // Let v be the lowest-numbered vertex of G
@@ -173,36 +170,34 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p: Part, partition: &mut 
     // let T' be the modular decomposition of G/P(G,v)
     // foreach member Y of P(G, v) do T_Y = UMD(G|Y)
     // return the composition of T' and {T_Y : Y in P(G,v) }
-    let mut removed = vec![];
 
     if graph.node_count() == 0 { return; }
 
-    let v = p.nodes_raw(partition).iter().min_by_key(|n| n.label).unwrap().node;
-    if p.len() == 1 {
-        tree[current.index()].kind = Kind::Vertex(v);
-        return;
-    }
+    let mut removed = vec![];
 
+    let mut stack = vec![(p0, current)];
+    while let Some((p, current)) = stack.pop() {
+        removed.clear();
 
-    let p = p.singleton(partition, v);
-    ovp(graph, partition, |e| { removed.extend(e.iter().map(|&(u, v, _)| (u, v))) });
+        let v = p.nodes_raw(partition).iter().min_by_key(|n| n.label).unwrap().node;
+        if p.len() == 1 {
+            tree[current.index()].kind = Kind::Vertex(v);
+            continue;
+        }
 
+        let p = p.singleton(partition, v);
+        ovp(graph, partition, |e| { removed.extend(e.iter().map(|&(u, v, _)| (u, v))) });
 
-    let (mut quotient, v_q, mut ys) = build_quotient(removed, p.clone(), partition, v);
+        let (mut quotient, v_q, mut ys) = build_quotient(&mut removed, p.clone(), partition, v);
 
-    chain(&mut quotient, v_q, tree, current);
+        chain(&mut quotient, v_q, tree, current);
 
-    for (j, v) in collect_leaves(tree, current) {
-        assert!(matches!(tree[j.index()].kind, Kind::Vertex(_)));
-        ys[v.index()].1 = j;
-        tree[j.index()].kind = Kind::UnderConstruction;
-    }
+        for (j, v) in collect_leaves(tree, current) {
+            ys[v.index()].1 = j;
+            tree[j.index()].kind = UnderConstruction;
+        }
 
-    trace!("modular_decomposition:parts:1 {:?}", ys_.iter().map(|(y, j)| (j.index(), y.nodes(partition).map(|u| u.index()).collect::<Vec<_>>())).collect::<Vec<_>>());
-
-
-    for (y, j) in ys {
-        modular_decomposition(graph, y, partition, tree, j);
+        stack.extend(ys);
     }
 }
 
