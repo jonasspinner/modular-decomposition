@@ -165,7 +165,7 @@ run.add("md",
             "output": "data/05-md-trees/[[algo]]/[[name]].md",
             "stats": "data/04-algo-runs/[[algo]]/[[name]]_rep=[[repetition]].runstats",
         },
-        creates_file="[[output]]")
+        creates_file="[[stats]]")
 
 #
 # md_tree_stats
