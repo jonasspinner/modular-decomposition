@@ -124,9 +124,12 @@ pub fn modular_decomposition<N, E>(graph: &Graph<N, E, Undirected>) -> DiGraph<M
 
 
 #[cfg(test)]
+#[allow(non_snake_case)]
 mod test {
+    use std::collections::HashSet;
     use petgraph::dot::{Config, Dot};
     use petgraph::visit::IntoNodeReferences;
+    use common::instances;
     use common::instances::ted08_test0;
     use super::*;
 
@@ -160,5 +163,60 @@ mod test {
 
         assert_eq!(md.node_count(), 27);
         assert_eq!(count_node_kinds(&md), (2, 4, 3, 18));
+    }
+
+    #[test]
+    fn E_0() {
+        let graph = instances::empty_graph(0);
+        let md = modular_decomposition(&graph);
+        assert_eq!(md.node_count(), 0);
+    }
+
+    #[test]
+    fn E_1() {
+        let graph = instances::empty_graph(1);
+        let md = modular_decomposition(&graph);
+        assert_eq!(md.node_count(), 1);
+    }
+
+    #[test]
+    fn E_2() {
+        let graph = instances::empty_graph(2);
+        let md = modular_decomposition(&graph);
+        assert_eq!(md.node_count(), 3);
+        assert_eq!(md.node_weights().copied().collect::<HashSet<_>>(),
+                   HashSet::from_iter([MDNodeKind::Vertex(0), MDNodeKind::Vertex(1), MDNodeKind::Parallel]));
+    }
+
+    #[test]
+    fn K_2() {
+        let graph = instances::complete_graph(2);
+        let md = modular_decomposition(&graph);
+        assert_eq!(md.node_count(), 3);
+        assert_eq!(md.node_weights().copied().collect::<HashSet<_>>(),
+                   HashSet::from_iter([MDNodeKind::Vertex(0), MDNodeKind::Vertex(1), MDNodeKind::Series]));
+    }
+
+    #[test]
+    fn K_32() {
+        let graph = instances::complete_graph(32);
+        let md = modular_decomposition(&graph);
+        assert_eq!(md.node_count(), 33);
+    }
+
+    #[test]
+    fn P_4() {
+        let graph = instances::path_graph(4);
+        let md = modular_decomposition(&graph);
+        assert_eq!(md.node_count(), 5);
+        assert_eq!(md.node_weights().copied().collect::<HashSet<_>>(),
+                   HashSet::from_iter([MDNodeKind::Vertex(0), MDNodeKind::Vertex(1), MDNodeKind::Vertex(2), MDNodeKind::Vertex(3), MDNodeKind::Prime]));
+    }
+
+    #[test]
+    fn P_32() {
+        let graph = instances::path_graph(32);
+        let md = modular_decomposition(&graph);
+        assert_eq!(md.node_count(), 33);
     }
 }

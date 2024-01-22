@@ -66,8 +66,125 @@ pub mod ffi {
 #[cfg(test)]
 mod tests {
     use std::ffi::c_int;
-    use std::ptr::null_mut;
+    use std::ptr::{null, null_mut};
     use super::ffi::*;
+
+
+    #[test]
+    fn graph_new_empty() {
+        let num_vertices = 0;
+        let edges = [];
+        let mut graph = null_mut();
+
+        let status = unsafe { miz23_graph_new(num_vertices as _, edges.as_ptr(), edges.len() as _, &mut graph as *mut *mut _) };
+        assert_eq!(status, 0);
+        assert_ne!(graph, null_mut());
+
+        let status = unsafe { miz23_graph_new(num_vertices as _, edges.as_ptr(), edges.len() as _, &mut graph as *mut *mut _) };
+        assert_eq!(status, -1);
+        assert_ne!(graph, null_mut());
+
+        unsafe { miz23_graph_delete(graph) };
+    }
+
+    #[test]
+    fn graph_new_missing_edges() {
+        let mut graph = null_mut();
+
+        let status = unsafe { miz23_graph_new(0 as _, null(), 0 as _, &mut graph as *mut *mut _) };
+        assert_eq!(status, 0);
+        assert_ne!(graph, null_mut());
+
+        let status = unsafe { miz23_graph_new(0 as _, null(), 0 as _, &mut graph as *mut *mut _) };
+        assert_eq!(status, -1);
+        assert_ne!(graph, null_mut());
+
+        unsafe { miz23_graph_delete(graph) };
+    }
+
+    #[test]
+    fn graph_new_missing_edges_1() {
+        let mut graph = null_mut();
+
+        let status = unsafe { miz23_graph_new(0 as _, null(), 1 as _, &mut graph as *mut *mut _) };
+        assert_eq!(status, -1);
+        assert_eq!(graph, null_mut());
+    }
+
+    #[test]
+    fn graph_new_missing_graph() {
+        let edges = [];
+
+        let status = unsafe { miz23_graph_new(0 as _, edges.as_ptr(), 0 as _, null_mut()) };
+        assert_eq!(status, -1);
+    }
+
+    #[test]
+    fn graph_delete_null() {
+        unsafe { miz23_graph_delete(null_mut()) }
+    }
+
+    #[test]
+    fn compute_graph_null() {
+        let mut result = null_mut();
+
+        let status = unsafe { miz23_compute(null(), &mut result as *mut *mut _) };
+        assert_eq!(status, -1);
+        assert_eq!(result, null_mut());
+    }
+
+    #[test]
+    fn compute_result_null() {
+        let mut graph = null_mut();
+        let status = unsafe { miz23_graph_new(0 as _, null(), 0 as _, &mut graph as *mut *mut _) };
+        assert_eq!(status, 0);
+        assert_ne!(graph, null_mut());
+
+        let status = unsafe { miz23_compute(graph, null_mut()) };
+        assert_eq!(status, -1);
+        assert_ne!(graph, null_mut());
+
+        unsafe { miz23_graph_delete(graph) };
+    }
+
+    #[test]
+    fn result_null() {
+        let time = unsafe { miz23_result_time(null()) };
+        assert!(time.is_infinite());
+
+        let size = unsafe { miz23_result_size(null()) } as usize;
+        assert_eq!(size, 0);
+
+        unsafe { miz23_result_delete(null_mut()) };
+    }
+
+    #[test]
+    fn result_non_null() {
+        let mut graph = null_mut();
+        let status = unsafe { miz23_graph_new(0 as _, null(), 0 as _, &mut graph as *mut *mut _) };
+        assert_eq!(status, 0);
+        assert_ne!(graph, null_mut());
+
+        let mut result = null_mut();
+        let status = unsafe { miz23_compute(graph, &mut result as *mut *mut _) };
+        assert_eq!(status, 0);
+        assert_ne!(graph, null_mut());
+        assert_ne!(result, null_mut());
+
+        let status = unsafe { miz23_compute(graph, &mut result as *mut *mut _) };
+        assert_eq!(status, -1);
+        assert_ne!(graph, null_mut());
+        assert_ne!(result, null_mut());
+
+        let time = unsafe { miz23_result_time(result) } as f32;
+        assert!(time < 1.0);
+
+        let size = unsafe { miz23_result_size(result) } as usize;
+        assert_eq!(size, 0);
+
+        unsafe { miz23_graph_delete(graph) };
+        unsafe { miz23_result_delete(result) };
+    }
 
     #[test]
     fn it_works() {
@@ -77,16 +194,51 @@ mod tests {
         let mut graph = null_mut();
         let status = unsafe { miz23_graph_new(num_vertices as _, edges.as_ptr(), edges.len() as _, &mut graph as *mut *mut _) };
         assert_eq!(status, 0);
+        assert_ne!(graph, null_mut());
 
         let mut result = null_mut();
         let status = unsafe { miz23_compute(graph, &mut result as *mut *mut _) };
         assert_eq!(status, 0);
+        assert_ne!(result, null_mut());
 
         let time = unsafe { miz23_result_time(result) } as f32;
         assert!(time < 1.0);
 
         let size = unsafe { miz23_result_size(result) } as usize;
         assert_eq!(size, 6);
+
+        let mut nodes = vec![Node::default(); size];
+        let mut vertices = vec![-1; num_vertices];
+
+        let status = unsafe { miz23_result_copy_nodes(result, nodes.as_mut_ptr(), nodes.len() as _, vertices.as_mut_ptr(), vertices.len() as _) };
+        assert_eq!(status, 0);
+
+        assert_eq!(vertices, (0..num_vertices).rev().map(|i| i as c_int).collect::<Vec<_>>());
+
+        unsafe { miz23_graph_delete(graph) };
+        unsafe { miz23_result_delete(result) };
+    }
+
+    #[test]
+    fn empty_graph() {
+        let num_vertices = 0;
+        let edges = [];
+
+        let mut graph = null_mut();
+        let status = unsafe { miz23_graph_new(num_vertices as _, edges.as_ptr(), edges.len() as _, &mut graph as *mut *mut _) };
+        assert_eq!(status, 0);
+        assert_ne!(graph, null_mut());
+
+        let mut result = null_mut();
+        let status = unsafe { miz23_compute(graph, &mut result as *mut *mut _) };
+        assert_eq!(status, 0);
+        assert_ne!(result, null_mut());
+
+        let time = unsafe { miz23_result_time(result) } as f32;
+        assert!(time < 1.0);
+
+        let size = unsafe { miz23_result_size(result) } as usize;
+        assert_eq!(size, 0);
 
         let mut nodes = vec![Node::default(); size];
         let mut vertices = vec![-1; num_vertices];

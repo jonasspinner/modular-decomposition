@@ -10,7 +10,7 @@ use common::modular_decomposition::MDNodeKind;
 
 
 fn canonicalize(md_tree: &DiGraph<MDNodeKind, ()>) -> Vec<(u32, u32, MDNodeKind)> {
-    let root = md_tree.externals(Incoming).next().unwrap();
+    let Some(root) = md_tree.externals(Incoming).next() else { return vec![] };
     let mut dfs = DfsPostOrder::new(md_tree, root);
 
     let mut info = vec![(u32::MAX, u32::MAX); md_tree.node_count()];

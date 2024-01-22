@@ -60,6 +60,12 @@ struct Result {
 };
 
 int miz23_graph_new(int n, const Edge *edges, int m, Graph **out_graph) {
+    if (n < 0 || m < 0 || (m != 0 && edges == nullptr) || out_graph == nullptr) {
+        return -1;
+    }
+    if (*out_graph != nullptr) {
+        return -1;
+    }
     try {
         auto graph = std::make_unique<Graph>(n);
         for (int i = 0; i < m; ++i) {
@@ -79,6 +85,12 @@ void miz23_graph_delete(Graph *graph) {
 }
 
 int miz23_compute(const Graph *graph, Result **out_result) {
+    if (graph == nullptr || out_result == nullptr) {
+        return -1;
+    }
+    if (*out_result != nullptr) {
+        return -1;
+    }
     try {
         auto result = std::make_unique<Result>();
         result->inner = modular::modular_decomposition_time(graph->inner, false);
@@ -106,6 +118,12 @@ int miz23_result_size(const Result *result) {
 
 int miz23_result_copy_nodes(const Result *result, Node *nodes, int num_nodes,
                             int *vertices, int num_vertices) {
+    if (num_nodes < 0 || num_vertices < 0 || result == nullptr || nodes == nullptr || vertices == nullptr) {
+        return -1;
+    }
+    if (num_nodes == 0) {
+        return 0;
+    }
     try {
         const auto &md_tree = result->inner.first;
         const auto &tree = md_tree.get_tree();
