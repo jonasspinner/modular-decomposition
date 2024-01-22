@@ -66,7 +66,7 @@ run.add("generate_gnm",
         "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
         {
             "n": [2 ** 14],
-            "m": list(range(2 ** 12, 2 ** 16 + 1, 2 ** 12)),
+            "m": list(range(0, 2 ** 16 + 1, 2 ** 12)),
             "seed": list(range(10)),
             "name": "gnm_n=[[n]]-m=[[m]]-seed=[[seed]]",
             "output": "data/02-graphs/[[name]]"
@@ -97,7 +97,7 @@ add_generate_cograph_uni_deg(2, [2 ** 8, 2 ** 10, 2 ** 12], 256, 256)
 run.add("generate_path",
         "python3 scripts/generate.py path [[n]] --output [[output]]",
         {
-            "n": list(range(2 ** 12, 2 ** 18 + 1, 2 ** 10)),
+            "n": list(range(0, 2 ** 18 + 1, 2 ** 10)),
             "name": "path_n=[[n]]",
             "output": "data/02-graphs/[[name]]"
         },
@@ -106,7 +106,7 @@ run.add("generate_path",
 run.add("generate_cycle",
         "python3 scripts/generate.py cycle [[n]] --output [[output]]",
         {
-            "n": list(range(2 ** 12, 2 ** 18 + 1, 2 ** 10)),
+            "n": list(range(0, 2 ** 18 + 1, 2 ** 10)),
             "name": "cycle_n=[[n]]",
             "output": "data/02-graphs/[[name]]"
         },
