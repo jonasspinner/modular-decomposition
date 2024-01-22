@@ -28,21 +28,22 @@ def analyze_graph(input_path: Optional[Path], only_header: bool, timeout: int) -
     density = nx.density(graph)
     d = nx.degree(graph)
     degrees = [d[u] for u in range(n)]
-    deg_min = np.min(degrees)
-    deg_avg = np.mean(degrees)
-    deg_max = np.max(degrees)
-    deg_var = np.var(degrees)
-    deg_coeff_of_var = np.sqrt(deg_var) / deg_avg
-    deg_heterogeneity = np.log10(deg_coeff_of_var) if deg_coeff_of_var > 0.0 else -np.inf
+    deg_min = np.min(degrees) if degrees else None
+    deg_avg = np.mean(degrees) if degrees else None
+    deg_max = np.max(degrees) if degrees else None
+    deg_var = np.var(degrees) if degrees else None
+    deg_coeff_of_var = np.sqrt(deg_var) / deg_avg if degrees and deg_avg > 0.0 else None
+    deg_heterogeneity = None if deg_coeff_of_var is None else np.log10(
+        deg_coeff_of_var) if deg_coeff_of_var > 0.0 else -np.inf
 
     ccs = list(nx.connected_components(graph))
     num_cc = len(ccs)
-    max_cc = graph.subgraph(max(ccs, key=len))
-    max_cc_n = max_cc.number_of_nodes()
-    max_cc_m = max_cc.number_of_edges()
-    max_cc_density = nx.density(max_cc)
+    max_cc = graph.subgraph(max(ccs, key=len)) if ccs else None
+    max_cc_n = max_cc.number_of_nodes() if max_cc else None
+    max_cc_m = max_cc.number_of_edges() if max_cc else None
+    max_cc_density = nx.density(max_cc) if max_cc else None
 
-    e = run_with_timeout(nx.eccentricity, (max_cc,), timeout)
+    e = run_with_timeout(nx.eccentricity, (max_cc,), timeout) if max_cc else None
     if e is not None:
         e = list(e.values())
         max_cc_radius = min(e)
@@ -52,7 +53,7 @@ def analyze_graph(input_path: Optional[Path], only_header: bool, timeout: int) -
         max_cc_radius = None
         max_cc_diameter = None
         max_cc_avg_dist = None
-    average_clustering_estimate = run_with_timeout(nx.average_clustering, (graph,), timeout)
+    average_clustering_estimate = run_with_timeout(nx.average_clustering, (graph,), timeout) if n else None
 
     t = run_with_timeout(nx.triangles, (graph,), timeout)
     num_triangles = int(sum(t.values())) // 3 if t is not None else None
