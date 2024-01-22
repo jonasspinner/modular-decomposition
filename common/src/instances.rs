@@ -1,4 +1,31 @@
-use petgraph::graph::UnGraph;
+use petgraph::graph::{NodeIndex, UnGraph};
+
+pub fn empty_graph(n: usize) -> UnGraph<(), ()> {
+    let mut graph = UnGraph::new_undirected();
+    for _ in 0..n {
+        graph.add_node(());
+    }
+    graph
+}
+
+pub fn complete_graph(n: usize) -> UnGraph<(), ()> {
+    let mut graph = empty_graph(n);
+    for i in 0..n {
+        for j in i + 1..n {
+            graph.add_edge(NodeIndex::new(i), NodeIndex::new(j), ());
+        }
+    }
+    graph
+}
+
+pub fn path_graph(n: usize) -> UnGraph<(), ()> {
+    let mut graph = empty_graph(n);
+    for i in 1..n {
+        graph.add_edge(NodeIndex::new(i - 1), NodeIndex::new(i), ());
+    }
+    graph
+}
+
 
 pub fn ted08_test0() -> UnGraph<(), ()> {
     // from test0.txt in ted+08

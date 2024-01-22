@@ -86,9 +86,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             (start.elapsed(), result.finalize())
         }
         Algo::Kar19Rust => {
+            let problem = kar19_rs::prepare(&graph);
             let start = Instant::now();
-            let md = kar19_rs::modular_decomposition(&graph);
-            (start.elapsed(), md)
+            let result = problem.compute();
+            (start.elapsed(), result.finalize())
         }
     };
 

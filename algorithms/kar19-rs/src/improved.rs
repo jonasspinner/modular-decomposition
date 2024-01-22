@@ -1,18 +1,21 @@
 use std::iter::zip;
-use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
+use petgraph::data::{Element, FromElements};
+use petgraph::graph::{DiGraph, NodeIndex};
 use common::modular_decomposition::MDNodeKind;
 use tracing::{info, instrument};
 use crate::improved::factorizing_permutation::Permutation;
 
 
 #[allow(dead_code)]
-pub(crate) fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKind, ()> {
-    let mut graph: Vec<Vec<NodeIndex>> = graph.node_indices().map(|u| graph.neighbors(u).collect()).collect();
-    graph.iter_mut().for_each(|neighbors| neighbors.sort());
+pub(crate) fn modular_decomposition(graph: &mut [Vec<NodeIndex>]) -> DiGraph<MDNodeKind, ()> {
+    let n = graph.len();
+    if n == 0 { return DiGraph::new(); }
+    if n == 1 {
+        return DiGraph::from_elements([Element::Node { weight: MDNodeKind::Vertex(0) }]);
+    }
 
-    let p = factorizing_permutation(&graph);
+    let p = factorizing_permutation(graph);
 
-    let n = p.len();
     let mut op = vec![0; n];
     op[0] = 1;
     let mut cl = vec![0; n];
@@ -20,7 +23,7 @@ pub(crate) fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKi
     let mut lc: Vec<_> = (0..n - 1).map(|i| i as u32).collect();
     let mut uc: Vec<_> = (1..n).map(|i| i as u32).collect();
 
-    build_parenthesizing(&mut graph, &mut op, &mut cl, &mut lc, &mut uc, &p);
+    build_parenthesizing(graph, &mut op, &mut cl, &mut lc, &mut uc, &p);
 
     info!(n);
 
@@ -30,7 +33,7 @@ pub(crate) fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKi
 
     remove_singleton_dummy_nodes(&mut op, &mut cl);
 
-    let tree = build_tree(&graph, &op, &cl, &p);
+    let tree = build_tree(graph, &op, &cl, &p);
 
     info!(number_of_nodes = tree.node_count(), number_of_inner_nodes = tree.node_count() - graph.len());
 
@@ -879,7 +882,19 @@ pub(crate) mod factorizing_permutation {
 
     #[cfg(test)]
     mod test {
-        use super::factorizing_permutation;
+        use super::*;
+
+        #[test]
+        fn empty_graph() {
+            let p = factorizing_permutation(&[]);
+            assert_eq!(p.len(), 0);
+        }
+
+        #[test]
+        fn empty_one_vertex_graph() {
+            let p = factorizing_permutation(&[vec![]]);
+            assert_eq!(p.len(), 1);
+        }
 
         #[test]
         fn ted08_test0_graph() {
@@ -887,7 +902,7 @@ pub(crate) mod factorizing_permutation {
             let graph: Vec<_> = graph.node_indices().map(|u| graph.neighbors(u).collect()).collect();
 
             let p = factorizing_permutation(&graph);
-            println!("{:?}", p.iter().map(|n| n.index()).collect::<Vec<_>>());
+            assert_eq!(p.iter().map(|n| n.index()).collect::<Vec<_>>(), [15, 8, 17, 3, 4, 2, 7, 6, 5, 11, 10, 1, 9, 13, 14, 12, 0, 16]);
         }
     }
 }

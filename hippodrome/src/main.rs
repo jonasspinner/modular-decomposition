@@ -67,10 +67,11 @@ fn main() {
         let t2 = start.elapsed();
         let md2 = result.finalize();
 
-
+        let problem = kar19_rs::prepare(&graph);
         let start = Instant::now();
-        let md3 = kar19_rs::modular_decomposition(&graph);
+        let result = problem.compute();
         let t3 = start.elapsed();
+        let md3 = result.finalize();
 
         let md0 = canonicalize(&md0);
         let md1 = canonicalize(&md1);
@@ -85,7 +86,7 @@ fn main() {
             .map(|t| t.as_nanos())
             .iter().min().unwrap() as f64;
 
-        println!("{i:4.} {:<30.30}     Rust {:9} μs {:6.2}    C++ {:9} μs {:6.2}    MS00 {:9} μs {:6.2}    KAR19 {:9} μs {:6.2}",
+        println!("{i:4.} {:<30.30} miz23-rust {:9} μs {:6.2}  miz23-cpp {:9} μs {:6.2}  ms00 {:9} μs {:6.2}  kar19-rust {:9} μs {:6.2}",
                  path.file_name().and_then(OsStr::to_str).unwrap(),
                  t0.as_micros(), (t0.as_nanos() as f64 / fastest_time),
                  t1.as_micros(), (t1.as_nanos() as f64 / fastest_time),
