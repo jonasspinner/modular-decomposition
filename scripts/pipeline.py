@@ -52,7 +52,7 @@ run.add("convert_girg_deg_scaling",
         {
             "name": girg_deg_scaling_names,
             "input": "data/01-raw/girg_deg_scaling/edge_lists_girg_deg_scaling/girg_deg_scaling_[[name]]",
-            "output": "data/02-graphs/girg_deg_scaling-[[name]]"
+            "output": "data/02-graphs/girg-deg-scaling_[[name]]"
         },
         creates_file="[[output]]")
 
@@ -65,32 +65,39 @@ run.group("generate")
 run.add("generate_gnm",
         "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
         {
-            "n": [10000],
-            "m": list(range(5000, 50000 + 1, 5000)),
+            "n": [2 ** 14],
+            "m": list(range(2 ** 12, 2 ** 16 + 1, 2 ** 12)),
             "seed": list(range(10)),
-            "name": "gnm_n=[[n]]-m=[[m]]-s=[[seed]]",
+            "name": "gnm_n=[[n]]-m=[[m]]-seed=[[seed]]",
             "output": "data/02-graphs/[[name]]"
         },
         creates_file="[[output]]")
 
-run.add("generate_cograph-uni-deg",
-        "python3 scripts/generate.py cograph-uni-deg "
-        "[[n]] --a [[a]] --b [[b]] --root-kind=[[root_kind]] --seed [[seed]] --output [[output]]",
-        {
-            "n": [2 ** 8, 2 ** 10, 2 ** 12],
-            "a": 2,
-            "b": 8,
-            "root_kind": ["series", "parallel"],
-            "seed": list(range(10)),
-            "name": "cograph-uni-deg_n=[[n]]-a=[[a]]-b=[[b]]-r=[[root_kind]]-s=[[seed]]",
-            "output": "data/02-graphs/[[name]]"
-        },
-        creates_file="[[output]]")
+
+def add_generate_cograph_uni_deg(k, n, a: int, b: int):
+    run.add(f"generate_cograph-uni-deg_{k}",
+            "python3 scripts/generate.py cograph-uni-deg "
+            "[[n]] --a [[a]] --b [[b]] --root-kind=[[root_kind]] --seed [[seed]] --output [[output]]",
+            {
+                "n": n,
+                "a": a,
+                "b": b,
+                "root_kind": ["series", "parallel"],
+                "seed": list(range(10)),
+                "name": "cograph-uni-deg_n=[[n]]-a=[[a]]-b=[[b]]-r=[[root_kind]]-seed=[[seed]]",
+                "output": "data/02-graphs/[[name]]"
+            },
+            creates_file="[[output]]")
+
+
+add_generate_cograph_uni_deg(1, [2 ** 8, 2 ** 10, 2 ** 12, 2 ** 14], 2, 8)
+
+add_generate_cograph_uni_deg(2, [2 ** 8, 2 ** 10, 2 ** 12, 2 ** 14], 256, 256)
 
 run.add("generate_path",
         "python3 scripts/generate.py path [[n]] --output [[output]]",
         {
-            "n": list(range(2 ** 12, 2 ** 16, 2 ** 10)),
+            "n": list(range(2 ** 12, 2 ** 18 + 1, 2 ** 10)),
             "name": "path_n=[[n]]",
             "output": "data/02-graphs/[[name]]"
         },
@@ -99,7 +106,7 @@ run.add("generate_path",
 run.add("generate_cycle",
         "python3 scripts/generate.py cycle [[n]] --output [[output]]",
         {
-            "n": list(range(2 ** 12, 2 ** 16, 2 ** 10)),
+            "n": list(range(2 ** 12, 2 ** 18 + 1, 2 ** 10)),
             "name": "cycle_n=[[n]]",
             "output": "data/02-graphs/[[name]]"
         },
