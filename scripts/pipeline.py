@@ -130,6 +130,16 @@ run.add("generate_complete",
         },
         creates_file="[[output]]")
 
+run.add("generate_one-edge",
+        "python3 scripts/generate.py gnm [[n]] 1 --seed [[seed]] --output [[output]]",
+        {
+            "n": list(range(2 ** 4, 2 ** 10 + 1, 2 ** 4)),
+            "seed": 0,
+            "name": "one-edge_n=[[n]]-seed=[[seed]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
 #
 # plot_graphs
 #
