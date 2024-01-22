@@ -144,7 +144,7 @@ pub(crate) fn remove_non_module_dummy_nodes(op: &mut [u32], cl: &mut [u32], lc: 
     let create_inner_node = |op: &mut [u32], cl: &mut [u32], nodes: &[Info]| -> Info {
         let k = nodes.len();
 
-        assert!((0..k - 1).all(|i| nodes[i].last_vertex + 1 == nodes[i + 1].first_vertex));
+        debug_assert!((0..k - 1).all(|i| nodes[i].last_vertex + 1 == nodes[i + 1].first_vertex));
 
         let first_vertex = nodes[0].first_vertex;
         let last_vertex = nodes[k - 1].last_vertex;
@@ -251,35 +251,34 @@ pub(crate) fn build_tree(graph: &[Vec<NodeIndex>], op: &[u32], cl: &[u32], p: &P
     let mut marked = vec![false; n];
     let mut degrees: Vec<usize> = vec![];
 
-    let mut add_node = |t: &mut DiGraph<MDNodeKind, ()>, nodes: &[(NodeIndex, NodeIndex)]| -> (NodeIndex, NodeIndex) {
-        for (x, _) in nodes { marked[x.index()] = true; }
-
+    let mut determine_node_kind = |nodes: &[(NodeIndex, NodeIndex)]| -> MDNodeKind {
         // Prepare a vec with nodes.len() zeros at the front.
         let clear_len = degrees.len().min(nodes.len());
         degrees[0..clear_len].iter_mut().for_each(|d| *d = 0);
         degrees.resize(nodes.len(), 0);
 
+        for (x, _) in nodes { marked[x.index()] = true; }
         for (d, (x, _)) in zip(degrees.iter_mut(), nodes.iter()) {
-            *d = graph[x.index()].iter().copied().map(|v| marked[v.index()] as usize).sum();
+            *d = graph[x.index()].iter().copied().map(|y| marked[y.index()] as usize).sum();
         }
         for (x, _) in nodes { marked[x.index()] = false; }
 
         let n = nodes.len();
         let degree_sum = degrees.iter().sum::<usize>();
         assert!(degree_sum <= n * (n - 1));
-        let kind = if degree_sum == 0 { MDNodeKind::Parallel } else if degree_sum == n * (n - 1) { MDNodeKind::Series } else { MDNodeKind::Prime };
+        if degree_sum == 0 { MDNodeKind::Parallel } else if degree_sum == n * (n - 1) { MDNodeKind::Series } else { MDNodeKind::Prime }
+    };
 
-        let idx = if let Some((_, u)) =
-            nodes.iter()
-                .find(|(_, u)| t[*u] == kind && kind != MDNodeKind::Prime) {
-            *u
-        } else {
-            t.add_node(kind)
-        };
+    let mut add_node = |t: &mut DiGraph<MDNodeKind, ()>, nodes: &[(NodeIndex, NodeIndex)]| -> (NodeIndex, NodeIndex) {
+        let kind = determine_node_kind(nodes);
+
+        if kind != MDNodeKind::Prime {
+            assert!(nodes.iter().all(|(_, u)| t[*u] != kind));
+        }
+
+        let idx = t.add_node(kind);
         for (_, u) in nodes {
-            if *u != idx {
-                t.add_edge(idx, *u, ());
-            }
+            t.add_edge(idx, *u, ());
         }
         // Use the representative of the first child as representative
         // Might not be optimal if it has a larger degree than other nodes in the module.
@@ -458,13 +457,12 @@ pub(crate) mod factorizing_permutation {
             // the location and call add_pivot(X, X_a).
             for &u in &self.graph[y.index()] {
                 let u_pos = self.position(u);
-
                 let X_a_idx = self.node(u_pos).part;
-                let X_a = self.part(X_a_idx).seq;
 
                 if self.part(X_a_idx).is_marked() {
                     self.part_mut(X_a_idx).set_marked(false);
 
+                    let X_a = self.part(X_a_idx).seq;
                     let X_idx = if self.should_insert_right(X_a, y_pos) {
                         self.nodes[X_a.first().index() - 1].part
                     } else {
