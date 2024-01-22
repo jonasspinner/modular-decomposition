@@ -91,7 +91,7 @@ def decomposition_algorithm(G: nx.Graph):
     for P_alpha in P_alphas:
         print(P_alpha)
         print(f"   {covered_vertices(P_alpha)}")
-        print(f"   {''.join(sorted(covered_vertices(P_alpha)))}")
+        print(f"   {''.join(map(str, sorted(covered_vertices(P_alpha))))}")
     # print([P[c] for c in set(C.values())])
     G_prime = None
 
@@ -117,6 +117,7 @@ def main():
         'c': "xia",
         'x': "edca",
     })
+    G = nx.convert_node_labels_to_integers(G)
 
     renamed = nx.quotient_graph(G, [[u] for u in sorted(G.nodes)], relabel=True)
     print(f"p tww {len(G.nodes)} {len(G.edges)}")
