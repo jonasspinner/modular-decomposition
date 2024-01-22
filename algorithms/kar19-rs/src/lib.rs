@@ -1,6 +1,6 @@
 mod base;
-mod improved;
 mod shared;
+mod improved;
 
 use petgraph::graph::{DiGraph, UnGraph};
 use common::modular_decomposition::MDNodeKind;

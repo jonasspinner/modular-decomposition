@@ -4,32 +4,31 @@ use tracing::instrument;
 pub(crate) fn create_consecutive_twin_nodes(op: &mut [usize], cl: &mut [usize], lc: &[usize], uc: &[usize]) {
     let n = op.len();
     let mut s = Vec::with_capacity(n);
-    let mut t = Vec::with_capacity(n);
     let mut l = 0;
     for k in 0..n {
-        for _ in 0..op[k] + 1 {
-            s.push(k);
-            t.push(l);
-            l = k;
-        }
+        s.push((k, l));
+        l = k;
+        s.extend(std::iter::repeat((k, k)).take(op[k]));
         for c in (0..cl[k] + 1).rev() {
-            let i = t.pop().unwrap();
-            let j = s.pop().unwrap();
+            let (j, i) = s.pop().unwrap();
 
-            l = i;
+            l = i; // continue twin chain by default
             if i >= j { continue; }
             if i <= lc[j - 1] && lc[j - 1] < uc[j - 1] && uc[j - 1] <= k {
+                // this node and prev are twins
                 if c > 0 {
+                    // not last parens ∴ last twin
                     op[i] += 1;
                     cl[k] += 1;
                     l = k + 1;
                 }
             } else {
+                // this node and prev aren't twins
                 if i < j - 1 {
                     op[i] += 1;
                     cl[j - 1] += 1;
                 }
-                l = j;
+                l = j; // this node starts new chain
             }
         }
     }
