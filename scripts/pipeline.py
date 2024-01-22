@@ -148,19 +148,19 @@ run.add(f"analyze_graphs",
 
 run.group("experiments")
 
-names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
+names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: -path.stat().st_size)]
 algos = ["kar19-rust", "miz23-rust", "miz23-cpp", "ms00"]
 for algo in algos:
     (Path("data/04-algo-runs") / algo).mkdir(exist_ok=True, parents=True)
     (Path("data/05-md-trees") / algo).mkdir(exist_ok=True, parents=True)
 run.add("md",
-        "cargo run --bin md --release -- "
+        "timeout 10m cargo run --bin md --release -- "
         "--algo [[algo]] --input-type metis "
         "--input [[input]] --output [[output]] --stats [[stats]]",
         {
             "algo": algos,
             "name": names,
-            "repetition": list(range(1)),
+            "repetition": list(range(5)),
             "input": "data/02-graphs/[[name]]",
             "output": "data/05-md-trees/[[algo]]/[[name]].md",
             "stats": "data/04-algo-runs/[[algo]]/[[name]]_rep=[[repetition]].runstats",
