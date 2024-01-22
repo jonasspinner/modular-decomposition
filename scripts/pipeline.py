@@ -2,7 +2,7 @@ from pathlib import Path
 import run
 import multiprocessing
 
-run.use_cores(multiprocessing.cpu_count() - 1)
+run.use_cores(min(8, multiprocessing.cpu_count()) - 1)
 
 #
 # build
