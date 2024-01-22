@@ -43,6 +43,12 @@ pub(crate) struct TreeNode {
     pub(crate) children: Vec<TreeNodeIndex>,
 }
 
+impl TreeNode {
+    fn new(kind: Kind) -> Self {
+        Self { kind, children: vec![] }
+    }
+}
+
 impl Default for TreeNode {
     fn default() -> Self {
         Self { kind: Kind::UnderConstruction, children: vec![] }
@@ -52,6 +58,8 @@ impl Default for TreeNode {
 fn determine_node_kind(xs: &[Part], num_edges: usize) -> Kind {
     let num_edges = num_edges * 2; // we count edges twice in the following calculations
 
+    if num_edges == 0 { return Parallel; }
+
     let (num_nodes, max_num_intra_cluster_edges) = xs.iter()
         .fold((0, 0), |(n1, n2), x| (n1 + x.len(), n2 + x.len() * x.len()));
     let max_num_edges = num_nodes.pow(2);
@@ -60,8 +68,6 @@ fn determine_node_kind(xs: &[Part], num_edges: usize) -> Kind {
 
     if num_edges == max_num_inter_cluster_edges {
         Series
-    } else if num_edges == 0 {
-        Parallel
     } else {
         Prime
     }
@@ -93,7 +99,9 @@ fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<Tre
         ovp(graph, subpartition.clone(), partition, |e| { num_edges += e.len() });
 
         let xs: Vec<_> = subpartition.parts(partition).collect();
-        tree[current.index()].kind = determine_node_kind(&xs, num_edges);
+        let kind = determine_node_kind(&xs, num_edges);
+        if matches!(kind, Kind::Parallel | Kind::Series) { assert_eq!(xs.len(), 2); }
+        tree[current.index()].kind = kind;
 
         for x in xs {
             let t_x = TreeNodeIndex::new(tree.len());
@@ -161,6 +169,16 @@ fn build_quotient(removed: &mut Vec<(NodeIndex, NodeIndex)>,
     (Graph::from_edges(n_quotient.index(), removed.iter().copied()), map(inner_vertex), ys)
 }
 
+fn add_all_part_nodes_as_parallel_children(part: Part, partition: &Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
+    tree.reserve(part.len());
+    tree[current.index()].kind = Kind::Parallel;
+    let tree_len = tree.len();
+    tree[current.index()].children.extend((tree_len..tree_len + part.len()).map(TreeNodeIndex::new));
+    for v in part.nodes(partition) {
+        tree.push(TreeNode::new(Kind::Vertex(v)));
+    }
+}
+
 #[instrument(skip_all)]
 pub(crate) fn modular_decomposition(graph: &mut Graph, p0: Part, partition: &mut Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
     // Let v be the lowest-numbered vertex of G
@@ -177,6 +195,12 @@ pub(crate) fn modular_decomposition(graph: &mut Graph, p0: Part, partition: &mut
     let mut stack = vec![(p0, current)];
     while let Some((p, current)) = stack.pop() {
         removed.clear();
+
+        if graph.edge_count() == 0 {
+            // NOTE: This could be a check if there are no edges in p.
+            add_all_part_nodes_as_parallel_children(p, partition, tree, current);
+            continue;
+        }
 
         let v = p.nodes_raw(partition).iter().min_by_key(|n| n.label).unwrap().node;
         if p.len() == 1 {

@@ -25,6 +25,7 @@ pub(crate) struct Edge {
 pub(crate) struct Graph {
     nodes: Vec<Node>,
     edges: Vec<Edge>,
+    num_deleted_edges: usize,
 }
 
 impl Graph {
@@ -55,13 +56,15 @@ impl Graph {
             nodes[b.index()].end.0 += 1;
         }
 
-        //if n >= 4 { println!("n={:8} m={:12}", n, m); }
-
-        Self { nodes, edges }
+        Self { nodes, edges, num_deleted_edges: 0 }
     }
 
     pub(crate) fn node_count(&self) -> usize {
         self.nodes.len().saturating_sub(1)
+    }
+
+    pub(crate) fn edge_count(&self) -> usize {
+        self.edges.len() - self.num_deleted_edges
     }
 
     pub(crate) fn node_indices(&self) -> impl Iterator<Item=NodeIndex> {
@@ -113,6 +116,8 @@ impl Graph {
 
             self.edges[uv.index()].deleted = true;
             self.edges[vu.index()].deleted = true;
+
+            self.num_deleted_edges += 1;
         }
 
         for uv in edges {
@@ -130,6 +135,7 @@ impl Graph {
             for e in &mut self.edges[a..b] { e.deleted = false; }
             self.nodes[i].end = self.nodes[i + 1].start;
         }
+        self.num_deleted_edges = 0;
     }
 
     fn find_edge(&self, u: NodeIndex, v: NodeIndex) -> Option<EdgeIndex> {
