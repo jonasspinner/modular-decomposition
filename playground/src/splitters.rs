@@ -41,7 +41,7 @@ mod hashset {
     }
 }
 
-mod counting {
+pub(crate) mod counting {
     use std::iter::FusedIterator;
     use petgraph::graph::{IndexType, NodeIndex, UnGraph};
 
