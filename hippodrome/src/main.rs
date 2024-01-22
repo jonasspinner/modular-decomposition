@@ -101,7 +101,7 @@ mod test {
     use std::collections::HashMap;
     use petgraph::dot::{Config, Dot};
     use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
-    use petgraph::visit::{EdgeRef, IntoEdgeReferences, IntoNodeReferences};
+    use petgraph::visit::{EdgeRef, IntoNodeReferences};
     use crate::canonicalize;
 
     #[test]
@@ -117,6 +117,7 @@ mod test {
             //60, 61,
             62, 68,
         ];
+        #[allow(unused_variables)]
         let vertices_8 = [
             4, 5, 6, 7, 8, 9, 62, 68,
         ];

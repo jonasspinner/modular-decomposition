@@ -15,7 +15,7 @@ macro_rules! traceln {
 fn overlap(A: impl IntoIterator<Item=u32>, B: impl IntoIterator<Item=u32>) -> bool {
     let A: HashSet<u32> = A.into_iter().collect();
     let B: HashSet<u32> = B.into_iter().collect();
-    return !A.is_disjoint(&B) && !A.is_subset(&B) && !B.is_subset(&A);
+    !A.is_disjoint(&B) && !A.is_subset(&B) && !B.is_subset(&A)
 }
 
 
@@ -127,8 +127,9 @@ pub(crate) fn modular_partition<N, E, Ix>(partition: &Vec<Vec<u32>>, graph: &Gra
     Q
 }
 
+#[cfg(test)]
+#[allow(non_snake_case)]
 mod test {
-    use petgraph::dot::{Config, Dot};
     use petgraph::graph::NodeIndex;
     use crate::modular_partition::modular_partition;
 
