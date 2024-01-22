@@ -90,9 +90,9 @@ def add_generate_cograph_uni_deg(k, n, a: int, b: int):
             creates_file="[[output]]")
 
 
-add_generate_cograph_uni_deg(1, [2 ** 8, 2 ** 10, 2 ** 12, 2 ** 14], 2, 8)
+add_generate_cograph_uni_deg(1, [2 ** 8, 2 ** 10, 2 ** 12], 2, 8)
 
-add_generate_cograph_uni_deg(2, [2 ** 8, 2 ** 10, 2 ** 12, 2 ** 14], 256, 256)
+add_generate_cograph_uni_deg(2, [2 ** 8, 2 ** 10, 2 ** 12], 256, 256)
 
 run.add("generate_path",
         "python3 scripts/generate.py path [[n]] --output [[output]]",
