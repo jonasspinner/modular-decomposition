@@ -1,6 +1,7 @@
 use std::cmp::{min, Reverse};
 use std::ffi::OsStr;
 use std::fs;
+use std::os::unix::fs::MetadataExt;
 use std::time::Instant;
 use petgraph::graph::{DiGraph};
 use petgraph::{Incoming, Outgoing};
@@ -42,11 +43,11 @@ fn canonicalize(md_tree: &DiGraph<MDNodeKind, ()>) -> Vec<(u32, u32, MDNodeKind)
 }
 
 fn main() {
-    let mut paths: Vec<_> = fs::read_dir("hippodrome/instances/pace2023").unwrap().map(|p| p.unwrap().path()).filter(|p| p.extension() == Some("gr".as_ref())).collect();
-    paths.sort();
+    let mut paths: Vec<_> = fs::read_dir("data/02-graphs").unwrap().map(|p| p.unwrap().path()).filter(|p| p.is_file()).collect();
+    paths.sort_by_key(|p| p.metadata().unwrap().size());
 
-    for path in &paths {
-        let graph = common::io::read_pace2023(path).unwrap();
+    for (i, path) in paths.iter().enumerate() {
+        let graph = common::io::read_metis(path).unwrap();
 
         let problem = miz23_md_rs::prepare(&graph);
         let start = Instant::now();
@@ -71,41 +72,27 @@ fn main() {
         let md3 = kar19_rs::modular_decomposition(&graph);
         let t3 = start.elapsed();
 
-        //let start = Instant::now();
-        //let md4 = lyt15_cpp_wrapper::modular_decomposition(&graph);
-        //let t4 = start.elapsed();
-
         let md0 = canonicalize(&md0);
         let md1 = canonicalize(&md1);
         let md2 = canonicalize(&md2);
         let md3 = canonicalize(&md3);
-        //let md4 = canonicalize(&md4);
 
         assert_eq!(md0, md1);
         assert_eq!(md1, md2);
         assert_eq!(md2, md3);
-        //assert_eq!(md3, md4);
 
         let fastest_time = *[t0, t1, t2, t3]
             .map(|t| t.as_nanos())
             .iter().min().unwrap() as f64;
 
-        println!("{}     Rust {:8} μs {:3.2}    C++ {:8} μs {:3.2}    MS00 {:8} μs {:3.2}    KAR19 {:8} μs {:3.2}", //"    LYT15 {:8} μs {:3.2}",
+        println!("{i:4.} {:<30.30}     Rust {:9} μs {:6.2}    C++ {:9} μs {:6.2}    MS00 {:9} μs {:6.2}    KAR19 {:9} μs {:6.2}",
                  path.file_name().and_then(OsStr::to_str).unwrap(),
                  t0.as_micros(), (t0.as_nanos() as f64 / fastest_time),
                  t1.as_micros(), (t1.as_nanos() as f64 / fastest_time),
                  t2.as_micros(), (t2.as_nanos() as f64 / fastest_time),
                  t3.as_micros(), (t3.as_nanos() as f64 / fastest_time),
-                 // t4.as_micros(), (t4.as_nanos() as f64 / fastest_time)
         );
     }
-
-    let graph = common::io::read_pace2023("hippodrome/instances/pace2023/exact_001.gr").unwrap();
-
-    let md0 = miz23_md_rs::modular_decomposition(&graph);
-    let md1 = miz23_md_cpp::modular_decomposition(&graph);
-
-    assert_eq!(canonicalize(&md0), canonicalize(&md1));
 }
 
 
