@@ -116,6 +116,14 @@ def main():
     cycle_parser.add_argument("n", type=int)
     cycle_parser.add_argument("--output", type=Path, required=True)
 
+    empty_parser = subparsers.add_parser("empty")
+    empty_parser.add_argument("n", type=int)
+    empty_parser.add_argument("--output", type=Path, required=True)
+
+    empty_parser = subparsers.add_parser("complete")
+    empty_parser.add_argument("n", type=int)
+    empty_parser.add_argument("--output", type=Path, required=True)
+
     args = parser.parse_args()
 
     output = args.output
@@ -149,6 +157,18 @@ def main():
             n = args.n
             assert 0 <= n
             graph = nx.cycle_graph(n)
+            with tmp_output.open("w") as f:
+                write_metis(f, graph)
+        elif args.generator == "empty":
+            n = args.n
+            assert 0 <= n
+            graph = nx.empty_graph(n)
+            with tmp_output.open("w") as f:
+                write_metis(f, graph)
+        elif args.generator == "complete":
+            n = args.n
+            assert 0 <= n
+            graph = nx.complete_graph(n)
             with tmp_output.open("w") as f:
                 write_metis(f, graph)
         else:

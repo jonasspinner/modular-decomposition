@@ -112,6 +112,24 @@ run.add("generate_cycle",
         },
         creates_file="[[output]]")
 
+run.add("generate_empty",
+        "python3 scripts/generate.py empty [[n]] --output [[output]]",
+        {
+            "n": list(range(0, 2 ** 18 + 1, 2 ** 10)),
+            "name": "empty_n=[[n]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
+run.add("generate_complete",
+        "python3 scripts/generate.py complete [[n]] --output [[output]]",
+        {
+            "n": list(range(0, 2 ** 10 + 1, 2 ** 4)),
+            "name": "complete_n=[[n]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
 #
 # plot_graphs
 #
