@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use tracing::instrument;
 use common::make_index;
 use crate::algos::Kind::{Parallel, Prime, Series};
 use crate::graph::{Graph, NodeIndex};
@@ -160,9 +161,8 @@ fn build_quotient(removed: &mut Vec<(NodeIndex, NodeIndex)>,
     (Graph::from_edges(n_quotient.index(), removed.iter().copied()), map(inner_vertex), ys)
 }
 
+#[instrument(skip_all)]
 pub(crate) fn modular_decomposition(graph: &mut Graph, p0: Part, partition: &mut Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
-    //println!("modular_decomposition:0 {} {} {}", graph.node_count(), p.start().index(), p.len());
-    trace!("modular_decomposition:parts:0  {:?}", to_vecs(&p.clone().into(), partition));
     // Let v be the lowest-numbered vertex of G
     // if G has only one vertex then return v
     // else
