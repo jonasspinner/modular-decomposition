@@ -118,36 +118,46 @@ def main():
 
     args = parser.parse_args()
 
-    if args.generator == "gnm":
-        n, m, seed = args.n, args.m, args.seed
-        assert 0 <= n
-        assert 0 <= m <= (n * (n - 1)) // 2
-        assert 0 <= seed < 2 ** 32
-        graph = nx.gnm_random_graph(n, m, seed, directed=False)
-        with args.output.open("w") as f:
-            write_metis(f, graph)
-    elif args.generator == "cograph-uni-deg":
-        n, a, b, root_kind, seed = args.n, args.a, args.b, args.root_kind, args.seed
-        assert 0 <= n
-        assert 2 <= a <= b
-        assert 0 <= seed < 2 ** 32
-        graph = random_cograph_uni_deg(n, a, b, root_kind, seed)
-        with args.output.open("w") as f:
-            write_metis(f, graph)
-    elif args.generator == "path":
-        n = args.n
-        assert 0 <= n
-        graph = nx.path_graph(n)
-        with args.output.open("w") as f:
-            write_metis(f, graph)
-    elif args.generator == "cycle":
-        n = args.n
-        assert 0 <= n
-        graph = nx.cycle_graph(n)
-        with args.output.open("w") as f:
-            write_metis(f, graph)
+    output = args.output
+    assert output is not None
+    tmp_output = output.with_suffix(".tmp")
+
+    try:
+        if args.generator == "gnm":
+            n, m, seed = args.n, args.m, args.seed
+            assert 0 <= n
+            assert 0 <= m <= (n * (n - 1)) // 2
+            assert 0 <= seed < 2 ** 32
+            graph = nx.gnm_random_graph(n, m, seed, directed=False)
+            with tmp_output.open("w") as f:
+                write_metis(f, graph)
+        elif args.generator == "cograph-uni-deg":
+            n, a, b, root_kind, seed = args.n, args.a, args.b, args.root_kind, args.seed
+            assert 0 <= n
+            assert 2 <= a <= b
+            assert 0 <= seed < 2 ** 32
+            graph = random_cograph_uni_deg(n, a, b, root_kind, seed)
+            with tmp_output.open("w") as f:
+                write_metis(f, graph)
+        elif args.generator == "path":
+            n = args.n
+            assert 0 <= n
+            graph = nx.path_graph(n)
+            with tmp_output.open("w") as f:
+                write_metis(f, graph)
+        elif args.generator == "cycle":
+            n = args.n
+            assert 0 <= n
+            graph = nx.cycle_graph(n)
+            with tmp_output.open("w") as f:
+                write_metis(f, graph)
+        else:
+            assert False
+    except Exception as e:
+        tmp_output.unlink(missing_ok=True)
+        raise e
     else:
-        assert False
+        tmp_output.replace(output)
 
 
 if __name__ == "__main__":
