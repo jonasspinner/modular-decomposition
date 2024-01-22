@@ -53,6 +53,8 @@ fn split<F>(graph: &mut Graph, p: SubPartition, partition: &mut Partition, f: &m
 
     let mut edges = crossing_edges(graph, x, partition);
 
+    if edges.is_empty() { return (q, q_prime); }
+
     graph.remove_edges(edges.iter().map(|e| e.2));
 
     for (_u, pivots) in group_by(&mut edges, |e| { e.0 }) {
@@ -87,13 +89,7 @@ pub(crate) fn ovp<F>(graph: &mut Graph, p: SubPartition, partition: &mut Partiti
     let mut queue = vec![p];
 
     while let Some(p) = queue.pop() {
-        match number_of_parts(&p, partition) {
-            NumParts::Zero => { panic!(); }
-            NumParts::One => { continue; }
-            NumParts::AtLeastTwo => {}
-        }
-
-        debug_assert!(p.part_indices(partition).count() >= 2);
+        if !matches!(number_of_parts(&p, partition), NumParts::AtLeastTwo) { continue; }
 
         let (q, q_prime) = split(graph, p, partition, &mut f);
 
