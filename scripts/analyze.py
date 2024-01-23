@@ -1,3 +1,4 @@
+import re
 from collections import Counter
 from pathlib import Path
 import networkx as nx
@@ -85,10 +86,14 @@ def analyze_tree(input_path: Optional[Path], only_header: bool, timeout: int) ->
 
     with input_path.open() as file:
         tree, _ = read_md_tree_adj(file)
-
-    assert nx.is_arborescence(tree)
+    tree: nx.DiGraph
 
     name = input_path.name
+
+    if tree.number_of_nodes() == 0:
+        return name + re.sub(r"{[^,{}]*}", "", line)
+
+    assert nx.is_arborescence(tree)
 
     root, = [u for u in tree.nodes() if tree.in_degree(u) == 0]
     leaves = [u for u in tree.nodes() if tree.out_degree(u) == 0]
