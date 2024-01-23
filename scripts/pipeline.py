@@ -4,6 +4,8 @@ import multiprocessing
 
 run.use_cores(min(8, multiprocessing.cpu_count()) - 1)
 
+Path("data/02-graphs").mkdir(exist_ok=True, parents=True)
+
 #
 # build
 #
