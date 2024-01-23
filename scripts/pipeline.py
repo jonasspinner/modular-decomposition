@@ -213,4 +213,29 @@ run.add(f"analyze_md_trees",
         },
         creates_file="[[output]]")
 
+#
+# compress
+#
+
+run.group("compress")
+
+
+def compress_folder(name):
+    prefix = name.split('-')[0]
+    run.add(f"compress_{prefix}",
+            "cd [[input]] && zip -r ../../[[output]] *",
+            {
+                "name": name,
+                "input": "data/[[name]]",
+                "output": "[[name]].zip"
+            },
+            creates_file="[[output]]")
+
+
+compress_folder("03-graph-stats")
+compress_folder("04-algo-runs")
+compress_folder("05-md-trees")
+compress_folder("06-md-tree-stats")
+compress_folder("10-graph-plots")
+
 run.run()
