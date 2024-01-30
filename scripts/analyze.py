@@ -162,7 +162,7 @@ def main():
         group = p.add_mutually_exclusive_group(required=True)
         group.add_argument("--only-header", action="store_true")
         group.add_argument("--input", type=Path)
-        p.add_argument("--output", type=Path, required=True)
+        p.add_argument("--output", type=Path)
         p.add_argument("--timeout", type=int, default=100)
     args = parser.parse_args()
 
@@ -181,8 +181,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # pace2023_names = [f"exact_{i:03}.gr" for i in range(1, 201)] + [f"heuristic_{i:03}.gr" for i in range(1, 201)]
-    # pace2023_dir = Path("../../hippodrome/instances/pace2023")
-    # pace2023_paths = [pace2023_dir / name for name in pace2023_names]
-    # df = create_csv(Path("pace2023_parameters.csv"), pace2023_paths[:370])
     main()
