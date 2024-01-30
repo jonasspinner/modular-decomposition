@@ -1,8 +1,7 @@
-use std::iter::zip;
 use petgraph::data::{Element, FromElements};
 use petgraph::graph::{DiGraph, NodeIndex};
 use common::modular_decomposition::MDNodeKind;
-use tracing::{info, instrument};
+use tracing::{info, info_span, instrument};
 use crate::improved::factorizing_permutation::Permutation;
 
 
@@ -16,12 +15,7 @@ pub(crate) fn modular_decomposition(graph: &mut [Vec<NodeIndex>]) -> DiGraph<MDN
 
     let p = factorizing_permutation(graph);
 
-    let mut op = vec![0; n];
-    op[0] = 1;
-    let mut cl = vec![0; n];
-    cl[n - 1] = 1;
-    let mut lc: Vec<_> = (0..n - 1).map(|i| i as u32).collect();
-    let mut uc: Vec<_> = (1..n).map(|i| i as u32).collect();
+    let (mut op, mut cl, mut lc, mut uc) = init_parenthesizing(n);
 
     build_parenthesizing(graph, &mut op, &mut cl, &mut lc, &mut uc, &p);
 
@@ -45,11 +39,25 @@ pub(crate) fn factorizing_permutation(graph: &[Vec<NodeIndex>]) -> Permutation {
     factorizing_permutation::factorizing_permutation(graph)
 }
 
+
+pub(crate) fn init_parenthesizing(n: usize) -> (Vec<u32>, Vec<u32>, Vec<u32>, Vec<u32>) {
+    let mut op = vec![0; n];
+    op[0] = 1;
+    let mut cl = vec![0; n];
+    cl[n - 1] = 1;
+    let lc = (0..n - 1).map(|i| i as u32).collect();
+    let uc = (1..n).map(|i| i as u32).collect();
+    (op, cl, lc, uc)
+}
+
 #[instrument(skip_all)]
 pub(crate) fn build_parenthesizing(graph: &mut [Vec<NodeIndex>], op: &mut [u32], cl: &mut [u32], lc: &mut [u32], uc: &mut [u32], p: &Permutation) {
-    graph.iter_mut().for_each(|neighbors| neighbors.sort_by_key(|u| { p.position(*u) }));
+    {
+        let _span = info_span!("sort_neighbors_by_pos").entered();
+        graph.iter_mut().for_each(|neighbors| neighbors.sort_by_key(|u| { p.position(*u) as u32 }));
+    }
 
-    fn merge_iter_next<'a>(mut a: impl Iterator<Item=&'a NodeIndex>, mut b: impl Iterator<Item=&'a NodeIndex>, f: impl Fn(NodeIndex) -> usize, g: impl Fn(usize, usize) -> usize) -> Option<usize> {
+    fn next_unequal<'a>(mut a: impl Iterator<Item=&'a NodeIndex>, mut b: impl Iterator<Item=&'a NodeIndex>, f: impl Fn(NodeIndex) -> usize, g: impl Fn(usize, usize) -> usize) -> Option<usize> {
         loop {
             match (a.next(), b.next()) {
                 (Some(i), Some(j)) => { if i != j { break Some(g(f(*i), f(*j))); } }
@@ -61,10 +69,10 @@ pub(crate) fn build_parenthesizing(graph: &mut [Vec<NodeIndex>], op: &mut [u32],
     }
 
     let first = |a: &[NodeIndex], b: &[NodeIndex]| -> Option<usize> {
-        merge_iter_next(a.iter(), b.iter(), |u| p.position(u), usize::min)
+        next_unequal(a.iter(), b.iter(), |u| p.position(u), usize::min)
     };
     let last = |a: &[NodeIndex], b: &[NodeIndex]| -> Option<usize> {
-        merge_iter_next(a.iter().rev(), b.iter().rev(), |u| p.position(u), usize::max)
+        next_unequal(a.iter().rev(), b.iter().rev(), |u| p.position(u), usize::max)
     };
 
     let n = p.len();
@@ -95,15 +103,16 @@ pub(crate) fn build_parenthesizing(graph: &mut [Vec<NodeIndex>], op: &mut [u32],
 }
 
 
-pub(crate) struct BuildStack<T> {
+pub(crate) struct SegmentedStack<T> {
     values: Vec<T>,
     starts: Vec<(u32, u32)>,
     len: usize,
 }
 
-impl<T> BuildStack<T> {
-    pub(crate) fn new() -> Self {
-        Self { values: vec![], starts: vec![(0, 1)], len: 0 }
+impl<T> SegmentedStack<T> {
+    pub(crate) fn with_capacity(capacity: usize) -> Self {
+        let starts = Vec::with_capacity(128);
+        Self { values: Vec::with_capacity(capacity), starts, len: 0 }
     }
     pub(crate) fn extend(&mut self, n: usize) {
         let start = self.values.len() as u32;
@@ -139,12 +148,12 @@ pub(crate) fn remove_non_module_dummy_nodes(op: &mut [u32], cl: &mut [u32], lc: 
             Self { first_vertex, last_vertex, first_cutter, last_cutter }
         }
     }
-    fn create_vertex_node(position: usize) -> Info {
+    fn handle_vertex_node(position: usize) -> Info {
         let pos = position as u32;
         Info::new(pos, pos, pos, pos)
     }
 
-    let create_inner_node = |op: &mut [u32], cl: &mut [u32], nodes: &[Info]| -> Info {
+    let handle_inner_node = |op: &mut [u32], cl: &mut [u32], nodes: &[Info]| -> Info {
         let k = nodes.len();
 
         debug_assert!((0..k - 1).all(|i| nodes[i].last_vertex + 1 == nodes[i + 1].first_vertex));
@@ -172,18 +181,17 @@ pub(crate) fn remove_non_module_dummy_nodes(op: &mut [u32], cl: &mut [u32], lc: 
     };
 
 
-    let mut s = BuildStack::new();
+    let mut s = SegmentedStack::with_capacity(op.len());
     for j in 0..op.len() {
         s.extend(op[j] as _);
-        s.add(create_vertex_node(j));
+        s.add(handle_vertex_node(j));
         for _ in 0..cl[j] {
-            let info = create_inner_node(op, cl, s.pop());
+            let info = handle_inner_node(op, cl, s.pop());
             s.add(info);
         }
     }
-    create_inner_node(op, cl, s.pop());
-    debug_assert_eq!(op.iter().sum::<u32>(), cl.iter().sum());
     assert!(s.is_empty());
+    debug_assert_eq!(op.iter().sum::<u32>(), cl.iter().sum());
 }
 
 #[instrument(skip_all)]
@@ -200,7 +208,8 @@ pub(crate) fn create_consecutive_twin_nodes(op: &mut [u32], cl: &mut [u32], lc: 
 
             l = i; // continue twin chain by default
             if i >= j { continue; }
-            if i <= (lc[j - 1] as usize) && (lc[j - 1] as usize) < (uc[j - 1] as usize) && (uc[j - 1] as usize) <= k {
+            let (a, b) = (lc[j - 1] as usize, uc[j - 1] as usize);
+            if i <= a && a < b && b <= k {
                 // this node and prev are twins
                 if c > 0 {
                     // not last parens ∴ last twin
@@ -237,8 +246,6 @@ pub(crate) fn remove_singleton_dummy_nodes(op: &mut [u32], cl: &mut [u32]) {
             i_ = i;
         }
     }
-    op[0] -= 1;
-    cl[n - 1] -= 1;
 }
 
 #[instrument(skip_all)]
@@ -251,50 +258,48 @@ pub(crate) fn build_tree(graph: &[Vec<NodeIndex>], op: &[u32], cl: &[u32], p: &P
     // For each representative, iterate over its neighbors. If a neighbor is also a representative,
     // increment the degree.
 
-    let mut marked = vec![false; n];
-    let mut degrees: Vec<usize> = vec![];
+    let mut marked = vec![0; n];
+    let mut gen = 0;
 
-    let mut determine_node_kind = |nodes: &[(NodeIndex, NodeIndex)]| -> MDNodeKind {
-        // Prepare a vec with nodes.len() zeros at the front.
-        let clear_len = degrees.len().min(nodes.len());
-        degrees[0..clear_len].iter_mut().for_each(|d| *d = 0);
-        degrees.resize(nodes.len(), 0);
+    let mut determine_node_kind = |nodes: &[(NodeIndex, NodeIndex)]| -> (NodeIndex, MDNodeKind) {
+        gen += 1;
+        for (x, _) in nodes { marked[x.index()] = gen; }
 
-        for (x, _) in nodes { marked[x.index()] = true; }
-        for (d, (x, _)) in zip(degrees.iter_mut(), nodes.iter()) {
-            *d = graph[x.index()].iter().copied().map(|y| marked[y.index()] as usize).sum();
-        }
-        for (x, _) in nodes { marked[x.index()] = false; }
+        let quotient_degree = |x: NodeIndex| -> usize {
+            graph[x.index()].iter().filter(|w| marked[w.index()] == gen).count()
+        };
+        let &(y, _) = nodes.iter().min_by_key(|(x, _)| graph[x.index()].len()).unwrap();
 
-        let n = nodes.len();
-        let degree_sum = degrees.iter().sum::<usize>();
-        assert!(degree_sum <= n * (n - 1));
-        if degree_sum == 0 { MDNodeKind::Parallel } else if degree_sum == n * (n - 1) { MDNodeKind::Series } else { MDNodeKind::Prime }
+        let k = nodes.len();
+        let d0 = quotient_degree(y);
+        let kind = if d0 == 0 || d0 == (k - 1) {
+            debug_assert!(nodes.iter().map(|(y, _)| quotient_degree(*y)).all(|d| d == d0));
+            if d0 == 0 { MDNodeKind::Parallel } else { MDNodeKind::Series }
+        } else {
+            MDNodeKind::Prime
+        };
+
+        (y, kind)
     };
 
     let mut add_node = |t: &mut DiGraph<MDNodeKind, ()>, nodes: &[(NodeIndex, NodeIndex)]| -> (NodeIndex, NodeIndex) {
-        let kind = determine_node_kind(nodes);
+        assert!(nodes.len() > 1);
+        let (y, kind) = determine_node_kind(nodes);
 
         if kind != MDNodeKind::Prime {
-            assert!(nodes.iter().all(|(_, u)| t[*u] != kind));
+            assert!(nodes.iter().all(|(_, u)| t[*u] != kind), "{:?}", kind);
         }
 
         let idx = t.add_node(kind);
         for (_, u) in nodes {
             t.add_edge(idx, *u, ());
         }
-        // Use the representative of the first child as representative
-        // Might not be optimal if it has a larger degree than other nodes in the module.
-        // Has been compared with i) child representative with the smallest degree, and
-        // ii) child representative with the smallest degree from the first 32 children only.
-        // Neither option was better for the instances investigated.
-        let x = nodes[0].0;
-        (x, idx)
+        (y, idx)
     };
 
     let mut t = DiGraph::new();
 
-    let mut s = BuildStack::new();
+    let mut s = SegmentedStack::with_capacity(op.len());
     for (j, x) in p.iter().enumerate() {
         s.extend(op[j] as _);
         let (x, idx) = (x, t.add_node(MDNodeKind::Vertex(x.index())));
@@ -304,7 +309,6 @@ pub(crate) fn build_tree(graph: &[Vec<NodeIndex>], op: &[u32], cl: &[u32], p: &P
             s.add((x, idx));
         }
     }
-    add_node(&mut t, s.pop());
     assert!(s.is_empty());
     t
 }
@@ -340,12 +344,10 @@ pub(crate) mod factorizing_permutation {
     impl<'a> State<'a> {
         fn partition_refinement(&mut self) {
             while self.init_partition() {
-                while let Some(E) = self.pop_pivot() {
-                    let E = self.part(E).seq;
-                    // NOTE: E may or may not be a single part
-                    for x_pos in E.positions() {
-                        let x = self.node(x_pos).node;
-                        self.refine(x, E);
+                while let Some(Y) = self.pop_pivot() {
+                    let Y = self.part(Y).seq;
+                    for y_pos in Y.positions() {
+                        self.refine(y_pos, Y);
                     }
                 }
             }
@@ -362,7 +364,8 @@ pub(crate) mod factorizing_permutation {
 
                 // Directly call refine.
                 // This avoids adding {x} as a new part and directly removing it again.
-                self.refine(x, X);
+                let x_pos = self.position(x);
+                self.refine(x_pos, X);
             } else {
                 let X_idx = non_singleton;
                 let X = self.part(X_idx).seq;
@@ -387,6 +390,7 @@ pub(crate) mod factorizing_permutation {
             // This takes O(|N(x)|) time.
 
             let mut X = self.part(X_idx).seq;
+            self.current_subgraph = X;
 
             // Create A
             let A_idx = self.new_part(X.first(), 0, false);
@@ -404,7 +408,7 @@ pub(crate) mod factorizing_permutation {
             self.part_mut(A_idx).seq = A;
 
             let A_idx = if A.is_empty() {
-                self.remove_if_empty(A_idx);
+                self.remove_part(A_idx);
                 None
             } else { Some(A_idx) };
 
@@ -421,7 +425,7 @@ pub(crate) mod factorizing_permutation {
             self.center_pos = x_pos;
 
             let N_idx = if X.is_empty() {
-                self.remove_if_empty(X_idx);
+                self.remove_part(X_idx);
                 None
             } else { Some(X_idx) };
 
@@ -434,16 +438,17 @@ pub(crate) mod factorizing_permutation {
             } else { (None, N_idx.unwrap()) }
         }
 
-        fn refine(&mut self, y: NodeIndex, E: Seq) {
-            let y_pos = self.position(y);
+        fn refine(&mut self, y_pos: NodePos, Y: Seq) {
+            let y = self.node(y_pos).node;
 
             // The pivot set S is N(y) \ E. S is implicitly computed by iterating over N(y) and
             // checking if a neighbor of y is in the set E. This can be done efficiently as E is
             // consecutive range.
 
+
             for &u in &self.graph[y.index()] {
                 let u_pos = self.position(u);
-                if E.contains(u_pos) { continue; }
+                if Y.contains(u_pos) || !self.current_subgraph.contains(u_pos) { continue; }
 
                 let X = self.part(self.node(u_pos).part).seq;
                 if X.contains(self.center_pos) || X.contains(y_pos) { continue; }
@@ -460,6 +465,7 @@ pub(crate) mod factorizing_permutation {
             // the location and call add_pivot(X, X_a).
             for &u in &self.graph[y.index()] {
                 let u_pos = self.position(u);
+                if Y.contains(u_pos) || !self.current_subgraph.contains(u_pos) { continue; }
                 let X_a_idx = self.node(u_pos).part;
 
                 if self.part(X_a_idx).is_marked() {
@@ -488,11 +494,7 @@ pub(crate) mod factorizing_permutation {
                 self.push_pivot(S);
 
                 if self.part(X_b).is_in_modules() {
-                    if X_b != L {
-                        let idx = std::mem::replace(&mut self.part_mut(X_b).modules_idx, u32::MAX);
-                        self.modules[idx] = L;
-                        self.part_mut(L).modules_idx = idx;
-                    }
+                    self.replace_module(X_b, L);
                 } else {
                     self.push_back_module(L);
                 }
@@ -501,26 +503,34 @@ pub(crate) mod factorizing_permutation {
 
 
         fn push_pivot(&mut self, pivot: PartIndex) {
-            assert!(!self.part(pivot).is_in_pivots());
+            debug_assert!(!self.part(pivot).is_in_pivots());
             self.pivots.push(pivot);
             self.part_mut(pivot).set_in_pivots(true);
         }
         fn pop_pivot(&mut self) -> Option<PartIndex> {
             let pivot = self.pivots.pop()?;
-            assert!(self.part(pivot).is_in_pivots());
+            debug_assert!(self.part(pivot).is_in_pivots());
             self.part_mut(pivot).set_in_pivots(false);
             Some(pivot)
         }
         fn push_back_module(&mut self, module: PartIndex) {
-            assert!(!self.part(module).is_in_modules());
+            debug_assert!(!self.part(module).is_in_modules());
             let idx = self.modules.push_back(module);
             self.part_mut(module).modules_idx = idx;
         }
         fn pop_front_module(&mut self) -> Option<PartIndex> {
             let module = self.modules.pop_front()?;
-            assert!(self.part(module).is_in_modules());
-            self.part_mut(module).modules_idx = u32::MAX;
+            debug_assert!(self.part(module).is_in_modules());
+            self.part_mut(module).modules_idx = DequeIndex::invalid();
             Some(module)
+        }
+
+        fn replace_module(&mut self, old: PartIndex, new: PartIndex) {
+            if old != new {
+                let idx = std::mem::replace(&mut self.part_mut(old).modules_idx, DequeIndex::invalid());
+                self.modules[idx] = new;
+                self.part_mut(new).modules_idx = idx;
+            }
         }
 
         fn should_insert_right(&self, X: Seq, y_pos: NodePos) -> bool {
@@ -535,7 +545,7 @@ pub(crate) mod factorizing_permutation {
         /// it. Otherwise we create a new part exactly to the right.
         fn insert_right(&mut self, u_pos: NodePos) {
             let part = self.node(u_pos).part;
-            assert!(!self.part(part).is_marked());
+            debug_assert!(!self.part(part).is_marked());
             let last = self.part(part).seq.last();
 
             let next = (last.index() + 1 != self.nodes.len()).then(|| {
@@ -545,9 +555,9 @@ pub(crate) mod factorizing_permutation {
                     self.new_part(NodePos::new(last.index() + 1), 0, true)
                 });
 
-            assert!(!self.part(next).is_in_pivots());
-            assert!(!self.part(next).is_in_modules());
-            assert!(self.part(next).is_marked());
+            debug_assert!(!self.part(next).is_in_pivots());
+            debug_assert!(!self.part(next).is_in_modules());
+            debug_assert!(self.part(next).is_marked());
 
             self.swap_nodes(last, u_pos);
             self.part_mut(next).seq.grow_left();
@@ -557,10 +567,10 @@ pub(crate) mod factorizing_permutation {
             if self.part(part).seq.is_empty() {
                 // We moved all elements from X to X n S.
                 // Undo all that and unmark the part to prevent interfering with neighboring parts.
-                self.remove_from_current_gen(next);
+                self.part_mut(next).set_marked(false);
                 self.part_mut(part).seq = self.part(next).seq;
                 self.part_mut(next).seq.len = 0;
-                self.remove_if_empty(next);
+                self.remove_part(next);
                 let range = self.part(part).seq.range();
                 self.nodes[range].iter_mut().for_each(|n| { n.part = part; });
             }
@@ -571,17 +581,17 @@ pub(crate) mod factorizing_permutation {
 
         fn insert_left(&mut self, u_pos: NodePos) {
             let part = self.node(u_pos).part;
-            assert!(!self.is_current_gen(part));
+            debug_assert!(!self.part(part).is_marked());
             let first = self.part(part).seq.first();
 
             let prev = (first.index() != 0).then(|| {
                 self.nodes[first.index() - 1].part
-            }).filter(|&prev| self.is_current_gen(prev))
+            }).filter(|&prev| self.part(prev).is_marked())
                 .unwrap_or_else(|| self.new_part(first, 0, true));
 
-            assert!(!self.part(prev).is_in_pivots());
-            assert!(!self.part(prev).is_in_modules());
-            assert!(self.is_current_gen(prev));
+            debug_assert!(!self.part(prev).is_in_pivots());
+            debug_assert!(!self.part(prev).is_in_modules());
+            debug_assert!(self.part(prev).is_marked());
 
             self.swap_nodes(first, u_pos);
             self.part_mut(prev).seq.grow_right();
@@ -591,10 +601,10 @@ pub(crate) mod factorizing_permutation {
             if self.part(part).seq.is_empty() {
                 // We moved all elements from X to X n S.
                 // Undo all that and unmark the part to prevent interfering with neighboring parts.
-                self.remove_from_current_gen(prev);
+                self.part_mut(prev).set_marked(false);
                 self.part_mut(part).seq = self.part(prev).seq;
                 self.part_mut(prev).seq.len = 0;
-                self.remove_if_empty(prev);
+                self.remove_part(prev);
                 let range = self.part(part).seq.range();
                 self.nodes[range].iter_mut().for_each(|n| { n.part = part; });
             }
@@ -620,15 +630,14 @@ pub(crate) mod factorizing_permutation {
         fn node_mut(&mut self, pos: NodePos) -> &mut Node { &mut self.nodes[pos.index()] }
         fn position(&self, node: NodeIndex) -> NodePos { self.positions[node.index()] }
 
-        fn remove_if_empty(&mut self, idx: PartIndex) {
+        fn remove_part(&mut self, idx: PartIndex) {
+            assert!(self.part(idx).seq.is_empty());
             assert!(!self.part(idx).is_in_pivots());
             assert!(!self.part(idx).is_in_modules());
-            if self.part(idx).seq.is_empty() {
-                self.removed.push(idx);
-            }
+            self.removed.push(idx);
         }
 
-        fn new_part(&mut self, first: NodePos, len: u32, is_current_gen: bool) -> PartIndex {
+        fn new_part(&mut self, first: NodePos, len: u32, marked: bool) -> PartIndex {
             let idx = if let Some(idx) = self.removed.pop() {
                 *self.part_mut(idx) = Part::new(Seq { first, len });
                 idx
@@ -637,12 +646,9 @@ pub(crate) mod factorizing_permutation {
                 self.parts.push(Part::new(Seq { first, len }));
                 idx
             };
-            self.part_mut(idx).set_marked(is_current_gen);
+            self.part_mut(idx).set_marked(marked);
             idx
         }
-
-        fn is_current_gen(&self, idx: PartIndex) -> bool { self.part(idx).is_marked() }
-        fn remove_from_current_gen(&mut self, idx: PartIndex) { self.part_mut(idx).set_marked(false); }
 
         /// Returns the index of a part which has at least two elements.
         ///
@@ -675,6 +681,8 @@ pub(crate) mod factorizing_permutation {
         modules: Deque<PartIndex>,
         center_pos: NodePos,
         non_singleton_idx: NodePos,
+
+        current_subgraph: Seq,
     }
 
     impl<'a> State<'a> {
@@ -687,11 +695,12 @@ pub(crate) mod factorizing_permutation {
             parts.push(Part::new(Seq::new(NodePos::new(0), n as u32)));
             let removed = vec![];
             let pivots = vec![];
-            let modules = Deque::new();
+            let modules = Deque::with_capacity(0);
             let center_pos = NodePos(u32::MAX);
             let non_singleton_idx = NodePos::new(0);
+            let current_subgraph = Seq::new(NodePos::new(0), n as u32);
 
-            State { graph, positions, nodes, parts, removed, pivots, modules, center_pos, non_singleton_idx }
+            State { graph, positions, nodes, parts, removed, pivots, modules, center_pos, non_singleton_idx, current_subgraph }
         }
 
         fn into_permutation(self) -> Permutation {
@@ -711,16 +720,20 @@ pub(crate) mod factorizing_permutation {
         fn new(first: NodePos, len: u32) -> Self { Self { first, len } }
         fn is_empty(&self) -> bool { self.len == 0 }
         fn first(&self) -> NodePos {
-            assert!(!self.is_empty());
+            debug_assert!(!self.is_empty());
             self.first
         }
 
         fn last(&self) -> NodePos {
-            assert!(!self.is_empty());
+            debug_assert!(!self.is_empty());
             NodePos::new(self.first.index() + (self.len as usize) - 1)
         }
 
-        fn contains(&self, pos: NodePos) -> bool { self.range().contains(&pos.index()) }
+        fn contains(&self, pos: NodePos) -> bool {
+            let s = self.first.0;
+            let e = s + self.len;
+            (s <= pos.0) & (pos.0 < e)
+        }
 
         fn range(&self) -> Range<usize> {
             let start = self.first.index();
@@ -733,17 +746,17 @@ pub(crate) mod factorizing_permutation {
 
         fn grow_right(&mut self) { self.len += 1; }
         fn shrink_right(&mut self) {
-            assert!(!self.is_empty());
+            debug_assert!(!self.is_empty());
             self.len -= 1;
         }
 
         fn grow_left(&mut self) {
-            assert_ne!(self.first, NodePos(0));
+            debug_assert_ne!(self.first, NodePos(0));
             self.first.0 -= 1;
             self.len += 1;
         }
         fn shrink_left(&mut self) {
-            assert!(!self.is_empty());
+            debug_assert!(!self.is_empty());
             self.first.0 += 1;
             self.len -= 1;
         }
@@ -757,18 +770,15 @@ pub(crate) mod factorizing_permutation {
         part: PartIndex,
     }
 
-    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-    struct Gen(u32);
-
     struct Part {
         seq: Seq,
-        modules_idx: u32,
+        modules_idx: DequeIndex,
         flags: u8,
     }
 
     impl Part {
         fn new(seq: Seq) -> Self {
-            Self { seq, modules_idx: u32::MAX, flags: 0 }
+            Self { seq, modules_idx: DequeIndex::invalid(), flags: 0 }
         }
         fn is_marked(&self) -> bool {
             self.flags & 1 != 0
@@ -783,7 +793,7 @@ pub(crate) mod factorizing_permutation {
             self.flags = if b { self.flags | 2 } else { self.flags & !2 };
         }
         fn is_in_modules(&self) -> bool {
-            self.modules_idx != u32::MAX
+            self.modules_idx.is_valid()
         }
     }
 
@@ -799,6 +809,12 @@ pub(crate) mod factorizing_permutation {
     }
 
     impl Permutation {
+        #[allow(unused)]
+        pub(crate) fn new_identity(size: usize) -> Self {
+            let positions = (0..size).map(NodePos::new).collect();
+            let nodes = (0..size).map(NodeIndex::new).map(|node| Node { node, part: Default::default() }).collect();
+            Self { positions, nodes }
+        }
         pub(crate) fn len(&self) -> usize { self.nodes.len() }
         pub(crate) fn position(&self, u: NodeIndex) -> usize { self.positions[u.index()].index() }
     }
@@ -807,28 +823,29 @@ pub(crate) mod factorizing_permutation {
         pub(crate) fn iter(&'a self) -> impl Iterator<Item=NodeIndex> + 'a { self.nodes.iter().map(|n| n.node) }
     }
 
+    make_index!(DequeIndex);
 
     struct Deque<T> {
         elements: Vec<T>,
-        head: u32,
-        tail: u32,
+        head: DequeIndex,
+        tail: DequeIndex,
     }
 
     impl<T> Deque<T> {
-        fn new() -> Self {
-            Self { elements: vec![], head: 0, tail: 0 }
+        fn with_capacity(capacity: usize) -> Self {
+            Self { elements: Vec::with_capacity(capacity), head: DequeIndex::new(0), tail: DequeIndex::new(0) }
         }
         fn len(&self) -> usize {
-            (self.head - self.tail) as usize
+            (self.head.0 - self.tail.0) as usize
         }
-        fn from_index_to_pos(idx: u32, n: usize) -> usize {
-            idx as usize % n
+        fn from_index_to_pos(idx: DequeIndex, n: usize) -> usize {
+            idx.index() % n
         }
     }
 
     impl<T: Copy + Default> Deque<T> {
-        fn push_back(&mut self, element: T) -> u32 {
-            if self.head == self.elements.len() as u32 + self.tail {
+        fn push_back(&mut self, element: T) -> DequeIndex {
+            if self.head.0 == self.elements.len() as u32 + self.tail.0 {
                 let old_len = self.elements.len();
                 let new_len = 1024.max(old_len * 2);
                 self.elements.resize(new_len, T::default());
@@ -841,17 +858,17 @@ pub(crate) mod factorizing_permutation {
             let idx = self.head;
             let pos = Self::from_index_to_pos(idx, self.elements.len());
             self.elements[pos] = element;
-            self.head += 1;
+            self.head.0 += 1;
             idx
         }
         fn pop_front(&mut self) -> Option<T> {
             if self.head != self.tail {
                 let pos = Self::from_index_to_pos(self.tail, self.elements.len());
                 let element = self.elements[pos];
-                self.tail += 1;
+                self.tail.0 += 1;
                 if self.head == self.tail {
-                    self.head = 0;
-                    self.tail = 0;
+                    self.head.0 = 0;
+                    self.tail.0 = 0;
                 }
                 Some(element)
             } else {
@@ -860,10 +877,10 @@ pub(crate) mod factorizing_permutation {
         }
     }
 
-    impl<T> Index<u32> for Deque<T> {
+    impl<T> Index<DequeIndex> for Deque<T> {
         type Output = T;
 
-        fn index(&self, index: u32) -> &Self::Output {
+        fn index(&self, index: DequeIndex) -> &Self::Output {
             assert!(self.tail <= index);
             assert!(index < self.head);
             let pos = Self::from_index_to_pos(index, self.elements.len());
@@ -871,8 +888,8 @@ pub(crate) mod factorizing_permutation {
         }
     }
 
-    impl<T> IndexMut<u32> for Deque<T> {
-        fn index_mut(&mut self, index: u32) -> &mut Self::Output {
+    impl<T> IndexMut<DequeIndex> for Deque<T> {
+        fn index_mut(&mut self, index: DequeIndex) -> &mut Self::Output {
             assert!(self.tail <= index);
             assert!(index < self.head);
             let pos = Self::from_index_to_pos(index, self.elements.len());
@@ -904,6 +921,66 @@ pub(crate) mod factorizing_permutation {
             let p = factorizing_permutation(&graph);
             assert_eq!(p.iter().map(|n| n.index()).collect::<Vec<_>>(), [15, 8, 17, 3, 4, 2, 7, 6, 5, 11, 10, 1, 9, 13, 14, 12, 0, 16]);
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use petgraph::dot::{Config, Dot};
+    use petgraph::graph::{NodeIndex, UnGraph};
+    use crate::improved::{build_parenthesizing, create_consecutive_twin_nodes, init_parenthesizing, modular_decomposition, remove_non_module_dummy_nodes, remove_singleton_dummy_nodes};
+    use crate::improved::factorizing_permutation::Permutation;
+
+    fn print_parenthesis(op: &[u32], cl: &[u32], permutation: &Permutation) {
+        let n = op.len();
+        for j in 0..n {
+            for _ in 0..op[j] { print!("("); }
+            print!("{}", permutation[j].index());
+            for _ in 0..cl[j] { print!(")"); }
+        }
+        println!();
+    }
+
+    #[test]
+    fn parenthesized_factorizing_permutation() {
+        let n = 7;
+        let permutation = Permutation::new_identity(n);
+        let graph: UnGraph<(), ()> = UnGraph::from_edges([(0, 2), (0, 3), (0, 4), (1, 2), (1, 3), (1, 4), (2, 3), (2, 4), (3, 4), (4, 5), (5, 6)]);
+        let mut graph: Vec<Vec<NodeIndex>> = graph.node_indices().map(|u| graph.neighbors(u).collect()).collect();
+
+        let (mut op, mut cl, mut lc, mut uc) = init_parenthesizing(n);
+
+        build_parenthesizing(&mut graph, &mut op, &mut cl, &mut lc, &mut uc, &permutation);
+
+
+        assert_eq!(op, [3, 0, 0, 0, 2, 1, 0]);
+        assert_eq!(cl, [0, 1, 0, 0, 1, 2, 2]);
+
+        print_parenthesis(&op, &cl, &permutation);
+
+        remove_non_module_dummy_nodes(&mut op, &mut cl, &lc, &uc);
+
+        assert_eq!(op, [3, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(cl, [0, 1, 0, 0, 0, 0, 2]);
+
+        print_parenthesis(&op, &cl, &permutation);
+
+        create_consecutive_twin_nodes(&mut op, &mut cl, &lc, &uc);
+
+        assert_eq!(op, [5, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(cl, [0, 2, 0, 1, 0, 0, 2]);
+
+        print_parenthesis(&op, &cl, &permutation);
+
+        remove_singleton_dummy_nodes(&mut op, &mut cl);
+
+        assert_eq!(op, [3, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(cl, [0, 1, 0, 1, 0, 0, 1]);
+        print_parenthesis(&op, &cl, &permutation);
+
+
+        let tree = modular_decomposition(&mut graph);
+        println!("{:?}", Dot::with_config(&tree, &[Config::EdgeNoLabel]));
     }
 }
 

@@ -1,5 +1,4 @@
 mod base;
-mod shared;
 mod improved;
 
 use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
