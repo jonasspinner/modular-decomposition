@@ -64,7 +64,7 @@ impl Graph {
     }
 
     pub(crate) fn edge_count(&self) -> usize {
-        self.edges.len() - self.num_deleted_edges
+        self.edges.len() / 2 - self.num_deleted_edges
     }
 
     pub(crate) fn node_indices(&self) -> impl Iterator<Item=NodeIndex> {
