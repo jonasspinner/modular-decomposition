@@ -27,7 +27,7 @@ struct Gen(pub u32);
 pub(crate) struct Node {
     pub(crate) node: NodeIndex,
     pub(crate) label: u32,
-    part: PartIndex,
+    pub(crate) part: PartIndex,
 }
 
 #[derive(Debug, Clone)]
@@ -72,7 +72,7 @@ impl Partition {
         self.parts[idx.index()].clone().into()
     }
 
-    pub(crate) fn merge_all_parts(&mut self) -> Part {
+    pub(crate) fn merge_parts_and_label_vertices(&mut self) -> Part {
         self.removed.clear();
         for i in 0..self.nodes.len() {
             self.nodes[i].label = i as _;
@@ -117,12 +117,6 @@ impl Partition {
                 self.remove_part(part);
                 self.parts[new_part.index()].gen.0 = self.gen.0 - 1;
             }
-
-            //println!("i:    {:?}", (0..self.position.len()).collect::<Vec<_>>());
-            //println!("pos:  {:?}", self.position.iter().map(|pos| pos.index()).collect::<Vec<_>>());
-            //println!("node: {:?}", self.nodes.iter().map(|n| n.node.index()).collect::<Vec<_>>());
-            //println!("part: {:?}", self.nodes.iter().map(|n| n.part.index()).collect::<Vec<_>>());
-            // println!("{:?}", self.nodes.iter().map(|n| (n.node.index(), n.part.index())).collect::<Vec<_>>());
         }
     }
 
@@ -139,35 +133,28 @@ impl Partition {
             let pos = self.position[pivot.index()];
             let part = self.nodes[pos.index()].part;
             let PartInner { start, len, .. } = self.parts[part.index()];
-            //println!("{}: ({}, {})", part, start.index(), len);
-            let end = NodePos::new(start.index() + ((len - 1) as usize));
-            let next = (end.index() + 1 != self.nodes.len()).then(|| {
-                self.nodes[end.index() + 1].part
+            let last = NodePos::new(start.index() + ((len - 1) as usize));
+            let next = (last.index() + 1 != self.nodes.len()).then(|| {
+                self.nodes[last.index() + 1].part
             });
             let new_part = if next.is_some_and(|next| self.parts[next.index()].gen == self.gen) {
                 next.unwrap()
             } else {
-                self.new_part(NodePos::new(end.0 as usize + 1), 0)
+                self.new_part(NodePos::new(last.0 as usize + 1), 0)
             };
 
-            self.nodes.swap(end.index(), pos.index());
-            self.position[pivot.index()] = end;
+            self.nodes.swap(last.index(), pos.index());
+            self.position[pivot.index()] = last;
             self.position[self.nodes[pos.index()].node.index()] = pos;
             self.parts[new_part.index()].start.0 -= 1;
             self.parts[new_part.index()].len += 1;
             self.parts[part.index()].len -= 1;
-            self.nodes[end.index()].part = new_part;
+            self.nodes[last.index()].part = new_part;
 
             if self.parts[part.index()].len == 0 {
                 self.remove_part(part);
                 self.parts[new_part.index()].gen.0 = self.gen.0 - 1;
             }
-
-            // println!("i:    {:?}", (0..self.position.len()).collect::<Vec<_>>());
-            // println!("pos:  {:?}", self.position.iter().map(|pos| pos.index()).collect::<Vec<_>>());
-            // println!("node: {:?}", self.nodes.iter().map(|n| n.node.index()).collect::<Vec<_>>());
-            // println!("part: {:?}", self.nodes.iter().map(|n| n.part.index()).collect::<Vec<_>>());
-            // println!("{:?}", self.nodes.iter().map(|n| (n.node.index(), n.part.index())).collect::<Vec<_>>());
         }
     }
 }
@@ -213,7 +200,7 @@ impl Partition {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct SubPartition {
     start: NodePos,
     len: u32,
@@ -232,7 +219,7 @@ impl SubPartition {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct Part {
     start: NodePos,
     len: u32,
@@ -271,7 +258,7 @@ impl From<PartInner> for Part {
 }
 
 impl Part {
-    pub(crate) fn singleton(self, partition: &mut Partition, u: NodeIndex) -> SubPartition {
+    pub(crate) fn separate_single_vertex(self, partition: &mut Partition, u: NodeIndex) -> SubPartition {
         partition.refine_forward([u]);
         self.into()
     }
@@ -320,8 +307,8 @@ impl SubPartition {
 
 
 pub(crate) fn divide(p: SubPartition, partition: &Partition) -> (PartIndex, SubPartition, SubPartition, Dir) {
-    let first = p.first(&partition);
-    let last = p.last(&partition);
+    let first = p.first(partition);
+    let last = p.last(partition);
     assert_ne!(first, last);
     let PartInner { start: first_start, len: first_len, .. } = partition.parts[first.index()];
     let PartInner { start: last_start, len: last_len, .. } = partition.parts[last.index()];

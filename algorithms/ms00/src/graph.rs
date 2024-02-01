@@ -177,39 +177,17 @@ impl Graph {
     }
 }
 
-pub(crate) struct IncidentEdges<'edges> {
-    edges: &'edges [Edge],
-    next: EdgeIndex,
-    end: EdgeIndex,
-}
-
-impl<'edges> Iterator for IncidentEdges<'edges> {
-    type Item = (NodeIndex, EdgeIndex);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        (self.next != self.end).then(|| {
-            let e = self.next;
-            self.next.0 += 1;
-            assert!(!self.edges[e.index()].deleted);
-            (self.edges[e.index()].head, e)
-        })
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = (self.end.0 - self.next.0) as usize;
-        (len, Some(len))
-    }
-}
-
-impl FusedIterator for IncidentEdges<'_> {}
-
-impl ExactSizeIterator for IncidentEdges<'_> {}
-
-
 impl Graph {
-    pub(crate) fn incident_edges(&self, node: NodeIndex) -> IncidentEdges {
-        let Node { start: next, end } = self.nodes[node.index()];
-        IncidentEdges { edges: &self.edges, next, end }
+    pub(crate) fn incident_edges(&self, node: NodeIndex) -> impl Iterator<Item=(NodeIndex, EdgeIndex)> + FusedIterator + ExactSizeIterator + '_ {
+        let Node { start, end } = self.nodes[node.index()];
+        self.edges[start.index()..end.index()]
+            .iter()
+            .enumerate()
+            .map(move |(i, e)| (e.head, EdgeIndex(start.0 + i as u32)))
+    }
+    pub(crate) fn degree(&self, node: NodeIndex) -> usize {
+        let Node { start, end } = self.nodes[node.index()];
+        end.index() - start.index()
     }
 }
 

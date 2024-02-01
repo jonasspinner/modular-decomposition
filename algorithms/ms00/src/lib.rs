@@ -2,8 +2,9 @@
 
 use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
 use petgraph::visit::EdgeRef;
+use tracing::instrument;
 use common::modular_decomposition::MDNodeKind;
-use crate::algos::{Kind, TreeNode, TreeNodeIndex};
+use crate::algos::tree::{Kind, TreeNode, TreeNodeIndex};
 
 pub(crate) mod graph;
 pub(crate) mod partition;
@@ -21,9 +22,9 @@ macro_rules! trace {
 
 pub struct Prepared {
     graph: graph::Graph,
-    partition: partition::Partition,
 }
 
+#[instrument(skip_all)]
 pub fn prepare<N, E>(graph: &UnGraph<N, E>) -> Prepared
 {
     let edges: Vec<_> = graph.edge_references().map(|e| {
@@ -32,8 +33,7 @@ pub fn prepare<N, E>(graph: &UnGraph<N, E>) -> Prepared
         (u, v)
     }).collect();
     let graph = graph::Graph::from_edges(graph.node_count(), edges.iter().copied());
-    let partition = partition::Partition::new(graph.node_count());
-    Prepared { graph, partition }
+    Prepared { graph }
 }
 
 pub struct Computed {
@@ -41,31 +41,19 @@ pub struct Computed {
 }
 
 impl Prepared {
+    #[instrument(skip_all)]
     pub fn compute(mut self) -> Computed
     {
-        let p = partition::Part::new(&self.partition);
-        let mut tree = Vec::with_capacity(2 * self.graph.node_count());
-
-        if self.graph.node_count() != 0 {
-            let root = TreeNodeIndex::new(0);
-            tree.push(TreeNode::default());
-            algos::modular_decomposition(&mut self.graph, p, &mut self.partition, &mut tree, root);
-        }
+        let tree = algos::modular_decomposition(&mut self.graph);
         Computed { tree }
     }
 }
 
 impl Computed {
+    #[instrument(skip_all)]
     pub fn finalize(&self) -> DiGraph<MDNodeKind, ()> {
         let add_node = |md: &mut DiGraph<MDNodeKind, ()>, i: TreeNodeIndex| -> NodeIndex {
-            let kind = match self.tree[i.index()].kind {
-                Kind::Prime => { MDNodeKind::Prime }
-                Kind::Series => { MDNodeKind::Series }
-                Kind::Parallel => { MDNodeKind::Parallel }
-                Kind::Vertex(u) => { MDNodeKind::Vertex(u.index()) }
-                Kind::UnderConstruction => { panic!() }
-            };
-            md.add_node(kind)
+            md.add_node(self.tree[i.index()].kind.into())
         };
 
         let mut md = DiGraph::new();
