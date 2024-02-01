@@ -248,6 +248,101 @@ pub fn write_metis<P>(path: P, graph: &UnGraph<(), ()>) -> Result<(), WriteMetis
 }
 
 
+
+pub enum ReadMDTreeError {
+    NotMDTreeFormat,
+    MissingHeader,
+    WrongM(usize, usize),
+    WrongHeader(String),
+    ParseInt(ParseIntError),
+    IoError(io::Error),
+}
+
+impl From<io::Error> for ReadMDTreeError {
+    fn from(value: io::Error) -> Self { ReadMDTreeError::IoError(value) }
+}
+
+impl From<ParseIntError> for ReadMDTreeError {
+    fn from(value: ParseIntError) -> Self { ReadMDTreeError::ParseInt(value) }
+}
+
+impl Display for ReadMDTreeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReadMDTreeError::NotMDTreeFormat => { write!(f, "not metis format") }
+            ReadMDTreeError::MissingHeader => { write!(f, "missing header") }
+            ReadMDTreeError::WrongHeader(line) => { write!(f, "wrong header format. expected '(n) (m) 10', got '{line}'") }
+            ReadMDTreeError::WrongM(actual, expected) => { write!(f, "wrong m given in header. expected {expected}, got {actual}") }
+            ReadMDTreeError::ParseInt(err) => { write!(f, "parse error {err}") }
+            ReadMDTreeError::IoError(err) => { write!(f, "io error {err}") }
+        }
+    }
+}
+
+impl Debug for ReadMDTreeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{self}") }
+}
+
+impl Error for ReadMDTreeError {}
+
+pub fn read_md_tree_adj<P>(path: P) -> Result<DiGraph<MDNodeKind, ()>, ReadMDTreeError>
+    where P: AsRef<Path> {
+    let file = File::open(path)?;
+    let mut lines = io::BufReader::new(file).lines();
+    let first_line = loop {
+        let line = lines.next().ok_or(ReadMDTreeError::MissingHeader)??;
+        if !line.starts_with('%') { break line; }
+    };
+
+    let (n, m) = {
+        let err = || ReadMDTreeError::WrongHeader(first_line.clone());
+        let mut iter = first_line.split_ascii_whitespace();
+        let n: usize = iter.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        let m: usize = iter.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        let fmt: usize = iter.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        if fmt != 10 || iter.next().is_some() {
+            return Err(err());
+        }
+        (n, m)
+    };
+
+    if n > 0 && m != n - 1 {
+        return Err(ReadMDTreeError::WrongM(n - 1, m));
+    }
+
+    let mut tree = DiGraph::with_capacity(n, m);
+
+    for _ in 0..n { tree.add_node(MDNodeKind::Vertex(usize::MAX)); }
+
+    for (u, line) in lines.enumerate() {
+        let line = line?;
+        assert!(u < n, "n={n} m={m} u={u} line=\"{line}\"");
+        let u = NodeIndex::new(u);
+        if line.starts_with('%') { unimplemented!("cannot handle later comment lines") }
+        let mut values = line.split_ascii_whitespace();
+        let kind : usize = values.next().ok_or(ReadMDTreeError::NotMDTreeFormat)?.parse()?;
+        let kind = match kind {
+            0 => MDNodeKind::Prime,
+            1 => MDNodeKind::Series,
+            2 => MDNodeKind::Parallel,
+            v => MDNodeKind::Vertex(v-3) };
+        tree[u] = kind;
+        for v in values {
+            let v: usize = v.parse()?;
+            let v = NodeIndex::new(v);
+            assert_ne!(u, v);
+            tree.add_edge(u, v, ());
+        }
+    }
+
+    if tree.edge_count() != m {
+        return Err(ReadMDTreeError::WrongM(tree.edge_count(), m));
+    }
+
+    Ok(tree)
+}
+
+
 #[derive(Debug)]
 pub enum WriteMDTreeError {
     IoError(io::Error),
