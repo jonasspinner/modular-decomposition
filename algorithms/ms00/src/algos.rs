@@ -68,8 +68,7 @@ pub(crate) fn modular_decomposition(graph: &mut Graph) -> Vec<TreeNode> {
 
         // Further work on G[Y] for Y in P(G[X], v)
         for (part, idx) in ys {
-            if part.len() == 1 {
-                let v = part.nodes(&partition).next().unwrap();
+            if let Some(v) = part.try_into_node(&partition) {
                 tree[idx.index()].kind = Kind::Vertex(v);
             } else { stack.push((part, idx)) }
         }
@@ -106,8 +105,7 @@ fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<Tre
     // return T
 
     let try_single_vertex = |part: &Part, partition: &Partition, idx: TreeNodeIndex, tree: &mut Vec<TreeNode>| -> bool {
-        if part.len() == 1 {
-            let v = part.nodes(partition).next().unwrap();
+        if let Some(v) = part.try_into_node(partition) {
             tree[idx.index()].kind = Kind::Vertex(v);
             true
         } else { false }

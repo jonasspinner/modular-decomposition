@@ -241,6 +241,10 @@ impl Part {
         let end = start + self.len as usize;
         &partition.nodes[start..end]
     }
+
+    pub(crate) fn try_into_node(&self, partition: &Partition) -> Option<NodeIndex> {
+        (self.len() == 1).then_some(self.nodes_raw(partition)[0].node)
+    }
 }
 
 impl From<Part> for SubPartition {
