@@ -1,5 +1,5 @@
 use tracing::instrument;
-use crate::algos::tree::{for_leaves, Kind, TreeNode, TreeNodeIndex};
+use crate::algos::tree::{Kind, Tree, TreeNode, TreeNodeIndex};
 use crate::algos::utils::{add_all_nodes_as_children, build_quotient, check_series_parallel, determine_spine_node_kind, try_trivial_quotient};
 use crate::graph::{Graph, NodeIndex};
 use crate::ordered_vertex_partition::ovp;
@@ -23,9 +23,8 @@ pub(crate) fn modular_decomposition(graph: &mut Graph) -> Vec<TreeNode> {
         return vec![TreeNode::new(Kind::Vertex(NodeIndex::new(0)))];
     }
 
-    let mut tree = Vec::with_capacity(2 * graph.node_count());
-    let root = TreeNodeIndex::new(0);
-    tree.push(TreeNode::default());
+    let mut tree = Tree::with_capacity(2 * graph.node_count());
+    let root = tree.new_node(Kind::default());
 
     let mut partition = Partition::new(graph.node_count());
 
@@ -33,8 +32,8 @@ pub(crate) fn modular_decomposition(graph: &mut Graph) -> Vec<TreeNode> {
     let mut stack = vec![(Part::new(&partition), root)];
 
     while let Some((p, current)) = stack.pop() {
-        // We handle to subgraph G[X] with the part p = X.
-        // At this point there are no edges from X to V \ X.
+        // Handle the subgraph G[X] defined by the part p = X.
+        // At this point there are no edges between X and V \ X.
         assert!(p.len() >= 2);
 
         if let Some(kind) = check_series_parallel(graph, &p, &partition) {
@@ -62,21 +61,21 @@ pub(crate) fn modular_decomposition(graph: &mut Graph) -> Vec<TreeNode> {
         // MD(G[X] / P(G[X], v))
         chain(&mut quotient, v_q, &mut tree, current);
 
-        for_leaves(&tree, current, |(j, v)| {
+        tree.for_leaves(current, |(j, v)| {
             ys[v.index()].1 = j;
         });
 
         // Further work on G[Y] for Y in P(G[X], v)
         for (part, idx) in ys {
             if let Some(v) = part.try_into_node(&partition) {
-                tree[idx.index()].kind = Kind::Vertex(v);
+                tree[idx].kind = Kind::Vertex(v);
             } else { stack.push((part, idx)) }
         }
     }
-    tree
+    tree.into_vec()
 }
 
-fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
+fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Tree, current: TreeNodeIndex) {
     // Compute the modular decomposition of a nested graph with {v} being an innermost vertex in it.
 
     // P := OVP(G, ({v}, V(G) - {v});
@@ -94,7 +93,7 @@ fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Vec<TreeNode>, current: Tre
     rop(graph, p, &mut partition, tree, current);
 }
 
-fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
+fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Tree, current: TreeNodeIndex) {
     // if G has an isolated vertex then let w be that vertex
     // else let w be the highest numbered vertex
     // if G has only one vertex then return {w};
@@ -104,9 +103,9 @@ fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<Tre
     //   foreach set X_i do Let ROP(G|X_i) be the i_th child of V(G)
     // return T
 
-    let try_single_vertex = |part: &Part, partition: &Partition, idx: TreeNodeIndex, tree: &mut Vec<TreeNode>| -> bool {
+    let try_single_vertex = |part: &Part, partition: &Partition, idx: TreeNodeIndex, tree: &mut Tree| -> bool {
         if let Some(v) = part.try_into_node(partition) {
-            tree[idx.index()].kind = Kind::Vertex(v);
+            tree[idx].kind = Kind::Vertex(v);
             true
         } else { false }
     };
@@ -125,12 +124,11 @@ fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Vec<Tre
 
         let xs: Vec<_> = subpartition.parts(partition).collect();
         let kind = determine_spine_node_kind(&xs, num_edges);
-        tree[current.index()].kind = kind;
+        tree[current].kind = kind;
 
         for x in xs {
-            let t_x = TreeNodeIndex::new(tree.len());
-            tree.push(TreeNode::default());
-            tree[current.index()].children.push(t_x);
+            let t_x = tree.new_node(Kind::default());
+            tree[current].children.push(t_x);
             if !try_single_vertex(&x, partition, t_x, tree) {
                 stack.push((x, t_x));
             }
@@ -156,6 +154,7 @@ fn rop_find_w(graph: &mut Graph, p: &Part, partition: &mut Partition) -> NodeInd
 
 
 pub(crate) mod tree {
+    use std::ops::{Index, IndexMut};
     use common::make_index;
     use common::modular_decomposition::MDNodeKind;
     use crate::graph::NodeIndex;
@@ -180,7 +179,13 @@ pub(crate) mod tree {
         }
     }
 
-    #[derive(Debug)]
+    impl Default for Kind {
+        fn default() -> Self {
+            Kind::Vertex(NodeIndex::invalid())
+        }
+    }
+
+    #[derive(Debug, Default)]
     pub(crate) struct TreeNode {
         pub(crate) kind: Kind,
         pub(crate) children: Vec<TreeNodeIndex>,
@@ -192,28 +197,53 @@ pub(crate) mod tree {
         }
     }
 
-    impl Default for TreeNode {
-        fn default() -> Self {
-            Self { kind: Kind::Vertex(NodeIndex::invalid()), children: vec![] }
+    pub(crate) struct Tree {
+        nodes: Vec<TreeNode>,
+    }
+
+    impl Tree {
+        pub(crate) fn with_capacity(capacity: usize) -> Self {
+            Tree { nodes: Vec::with_capacity(capacity) }
+        }
+
+        pub(crate) fn new_node(&mut self, kind: Kind) -> TreeNodeIndex {
+            let n = self.nodes.len();
+            self.nodes.push(TreeNode::new(kind));
+            TreeNodeIndex::new(n)
+        }
+
+        pub(crate) fn for_leaves(&self, root: TreeNodeIndex, mut f: impl FnMut((TreeNodeIndex, NodeIndex))) {
+            let mut stack = vec![root];
+            while let Some(node) = stack.pop() {
+                if let Kind::Vertex(u) = self[node].kind {
+                    assert!(u.is_valid());
+                    f((node, u));
+                } else {
+                    stack.extend(self[node].children.iter().copied());
+                }
+            }
+        }
+        pub(crate) fn into_vec(self) -> Vec<TreeNode> { self.nodes }
+    }
+
+    impl Index<TreeNodeIndex> for Tree {
+        type Output = TreeNode;
+
+        fn index(&self, index: TreeNodeIndex) -> &Self::Output {
+            &self.nodes[index.index()]
         }
     }
 
-    pub(crate) fn for_leaves(tree: &[TreeNode], root: TreeNodeIndex, mut f: impl FnMut((TreeNodeIndex, NodeIndex))) {
-        let mut stack = vec![root];
-        while let Some(node) = stack.pop() {
-            if let Kind::Vertex(u) = tree[node.index()].kind {
-                assert!(u.is_valid());
-                f((node, u));
-            } else {
-                stack.extend(tree[node.index()].children.iter().copied());
-            }
+    impl IndexMut<TreeNodeIndex> for Tree {
+        fn index_mut(&mut self, index: TreeNodeIndex) -> &mut Self::Output {
+            &mut self.nodes[index.index()]
         }
     }
 }
 
 mod utils {
     use std::collections::HashMap;
-    use crate::algos::tree::{Kind, TreeNode, TreeNodeIndex};
+    use crate::algos::tree::{Kind, Tree, TreeNodeIndex};
     use crate::algos::tree::Kind::{Prime, Series, Parallel, Vertex};
     use crate::graph::{Graph, NodeIndex};
     use crate::partition::{Part, Partition, SubPartition};
@@ -228,7 +258,7 @@ mod utils {
 
     /// Try to apply the case that no further parts have been split, i.e. |P(G[X], v)| = 2.
     /// This is not necessary for correctness, but avoids building tiny quotient graphs.
-    pub(crate) fn try_trivial_quotient(removed: &[(NodeIndex, NodeIndex)], p: SubPartition, partition: &Partition, current: TreeNodeIndex, tree: &mut Vec<TreeNode>) -> Option<(Part, TreeNodeIndex)> {
+    pub(crate) fn try_trivial_quotient(removed: &[(NodeIndex, NodeIndex)], p: SubPartition, partition: &Partition, current: TreeNodeIndex, tree: &mut Tree) -> Option<(Part, TreeNodeIndex)> {
         let nodes = partition.nodes(&p);
         assert_ne!(nodes[0].part, nodes[1].part, "The subpartition started as [{{v}}, X - {{v}}].");
         if nodes[1].part != nodes[nodes.len() - 1].part {
@@ -237,14 +267,12 @@ mod utils {
         let v = nodes[0].node;
         let p1 = partition.part_by_index(nodes[1].part);
         let kind = if removed.is_empty() { Parallel } else { Series };
-        tree[current.index()].kind = kind;
-        let n = tree.len();
-        for i in [0, 1] {
-            tree.push(TreeNode::new(Vertex(v)));
-            tree[current.index()].children.push(TreeNodeIndex::new(n + i));
-        }
+        tree[current].kind = kind;
+        let a = tree.new_node(Vertex(v));
+        let b = tree.new_node(Kind::default());
+        tree[current].children.extend([a, b]);
         assert!(p1.len() > 1, "The case |X| = 2 should be covered earlier. |X| > 2 and |P(G[X], v)| = 2 imply |p1| = |X - {{v}}| > 1.");
-        Some((p1, TreeNodeIndex::new(n + 1)))
+        Some((p1, b))
     }
 
     pub(crate) fn build_quotient(removed: &mut Vec<(NodeIndex, NodeIndex)>,
@@ -289,13 +317,11 @@ mod utils {
     }
 
     /// Assign the given kind to the current node and add all nodes in the part as its children.
-    pub(crate) fn add_all_nodes_as_children(kind: Kind, part: Part, partition: &Partition, tree: &mut Vec<TreeNode>, current: TreeNodeIndex) {
-        tree.reserve(part.len());
-        tree[current.index()].kind = kind;
-        let tree_len = tree.len();
-        tree[current.index()].children.extend((tree_len..tree_len + part.len()).map(TreeNodeIndex::new));
+    pub(crate) fn add_all_nodes_as_children(kind: Kind, part: Part, partition: &Partition, tree: &mut Tree, current: TreeNodeIndex) {
+        tree[current].kind = kind;
         for v in part.nodes(partition) {
-            tree.push(TreeNode::new(Vertex(v)));
+            let c = tree.new_node(Vertex(v));
+            tree[current].children.push(c);
         }
     }
 }
@@ -303,7 +329,7 @@ mod utils {
 #[cfg(test)]
 mod test {
     use crate::algos::{chain, Kind};
-    use crate::algos::tree::{TreeNode, TreeNodeIndex};
+    use crate::algos::tree::{Tree, TreeNodeIndex};
     use crate::graph::{Graph, NodeIndex};
     use crate::testing::ted08_test0_graph;
 
@@ -339,37 +365,42 @@ mod test {
 
         {
             let mut graph = graph.clone();
-            let mut tree = vec![TreeNode::default()];
-            chain(&mut graph, NodeIndex::new(0), &mut tree, TreeNodeIndex::new(0));
-            println!("{:?}", tree);
+            let mut tree = Tree::with_capacity(0);
+            let root = tree.new_node(Kind::default());
+            chain(&mut graph, NodeIndex::new(0), &mut tree, root);
+            println!("{:?}", tree.into_vec());
         }
 
         {
             let mut graph = graph.clone();
-            let mut tree = vec![TreeNode::default()];
-            chain(&mut graph, NodeIndex::new(1), &mut tree, TreeNodeIndex::new(0));
-            println!("{:?}", tree);
+            let mut tree = Tree::with_capacity(0);
+            let root = tree.new_node(Kind::default());
+            chain(&mut graph, NodeIndex::new(1), &mut tree, root);
+            println!("{:?}", tree.into_vec());
         }
 
         {
             let mut graph = graph.clone();
-            let mut tree = vec![TreeNode::default()];
-            chain(&mut graph, NodeIndex::new(2), &mut tree, TreeNodeIndex::new(0));
-            println!("{:?}", tree);
+            let mut tree = Tree::with_capacity(0);
+            let root = tree.new_node(Kind::default());
+            chain(&mut graph, NodeIndex::new(2), &mut tree, root);
+            println!("{:?}", tree.into_vec());
         }
 
         {
             let mut graph = graph.clone();
-            let mut tree = vec![TreeNode::default()];
-            chain(&mut graph, NodeIndex::new(3), &mut tree, TreeNodeIndex::new(0));
-            println!("{:?}", tree);
+            let mut tree = Tree::with_capacity(0);
+            let root = tree.new_node(Kind::default());
+            chain(&mut graph, NodeIndex::new(3), &mut tree, root);
+            println!("{:?}", tree.into_vec());
         }
 
         {
             let mut graph = graph.clone();
-            let mut tree = vec![TreeNode::default()];
-            chain(&mut graph, NodeIndex::new(4), &mut tree, TreeNodeIndex::new(0));
-            println!("{:?}", tree);
+            let mut tree = Tree::with_capacity(0);
+            let root = tree.new_node(Kind::default());
+            chain(&mut graph, NodeIndex::new(4), &mut tree, root);
+            println!("{:?}", tree.into_vec());
         }
     }
 }
