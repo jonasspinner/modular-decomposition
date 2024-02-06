@@ -9,6 +9,7 @@ use crate::testing::to_vecs;
 
 
 #[instrument(skip_all)]
+#[allow(non_snake_case)]
 pub(crate) fn modular_decomposition(graph: &mut Graph) -> Vec<TreeNode> {
     // Let v be the lowest-numbered vertex of G
     // if G has only one vertex then return v
@@ -28,48 +29,49 @@ pub(crate) fn modular_decomposition(graph: &mut Graph) -> Vec<TreeNode> {
 
     let mut partition = Partition::new(graph.node_count());
 
-    let mut removed = vec![];
+    let mut crossing_edges = vec![];
+    let mut map = vec![NodeIndex::new(0); graph.node_count()];
     let mut stack = vec![(Part::new(&partition), root)];
 
-    while let Some((p, current)) = stack.pop() {
-        // Handle the subgraph G[X] defined by the part p = X.
+    while let Some((X, X_idx)) = stack.pop() {
+        // Handle the subgraph G[X] defined by the part X.
         // At this point there are no edges between X and V \ X.
-        assert!(p.len() >= 2);
+        assert!(X.len() >= 2);
 
-        if let Some(kind) = check_series_parallel(graph, &p, &partition) {
-            add_all_nodes_as_children(kind, p, &partition, &mut tree, current);
+        if let Some(kind) = check_series_parallel(graph, &X, &partition) {
+            add_all_nodes_as_children(X, X_idx, kind, &partition, &mut tree);
             continue;
         }
 
-        let v = p.nodes(&partition).next().unwrap();
+        let v = X.nodes(&partition).next().unwrap();
         // let v = p.nodes_raw(partition).iter().min_by_key(|n| n.label).unwrap().node;
 
         // P(G[X], v) = OVP(G[X], [{v}, X - {v}])
-        let p = p.separate_single_vertex(&mut partition, v);
-        removed.clear();
-        ovp(graph, p, &mut partition, |e| { removed.extend(e.iter().map(|&(u, v, _)| (u, v))) });
+        let p = X.separate_single_vertex(&mut partition, v);
+        crossing_edges.clear();
+        ovp(graph, p, &mut partition, |e| { crossing_edges.extend(e.iter().map(|&(u, v, _)| (u, v))) });
 
         // case |P(G[X], v)| = 2
-        if let Some(ys) = try_trivial_quotient(&removed, p, &partition, current, &mut tree) {
+        if let Some(ys) = try_trivial_quotient(&crossing_edges, p, &partition, X_idx, &mut tree) {
             stack.push(ys);
             continue;
         }
 
         // G[X] / P(G[X], v)
-        let (mut quotient, v_q, mut ys) = build_quotient(&mut removed, p, &partition, v);
+        let (mut quotient, v_q, mut ys) = build_quotient(&mut crossing_edges, p, &partition, v, &mut map);
 
         // MD(G[X] / P(G[X], v))
-        chain(&mut quotient, v_q, &mut tree, current);
+        chain(&mut quotient, v_q, &mut tree, X_idx);
 
-        tree.for_leaves(current, |(j, v)| {
+        tree.for_leaves(X_idx, |(j, v)| {
             ys[v.index()].1 = j;
         });
 
-        // Further work on G[Y] for Y in P(G[X], v)
-        for (part, idx) in ys {
-            if let Some(v) = part.try_into_node(&partition) {
-                tree[idx].kind = Kind::Vertex(v);
-            } else { stack.push((part, idx)) }
+        // further work on G[Y] for Y in P(G[X], v)
+        for (Y, Y_idx) in ys {
+            if let Some(v) = Y.try_into_node(&partition) {
+                tree[Y_idx].kind = Kind::Vertex(v);
+            } else { stack.push((Y, Y_idx)) }
         }
     }
     tree.into_vec()
@@ -82,18 +84,24 @@ fn chain(graph: &mut Graph, v: NodeIndex, tree: &mut Tree, current: TreeNodeInde
     // number the vertices of G in order of their appearance in P
     // return ROP(G).
 
+    // P = [V]
     let mut partition = Partition::new(graph.node_count());
 
+    // P = [{v}, V - {v}]
     partition.refine_forward([v]);
+    // OVP(G, [{v}, V - {v}])
     ovp(graph, partition.full_sub_partition(), &mut partition, |_| {});
 
+    // reset G and P. keep partition ordering as label
     graph.restore_removed_edges();
     let p = partition.merge_parts_and_label_vertices();
 
-    rop(graph, p, &mut partition, tree, current);
+    // ROP(G)
+    rop(graph, p, current, &mut partition, tree);
 }
 
-fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Tree, current: TreeNodeIndex) {
+#[allow(non_snake_case)]
+fn rop(graph: &mut Graph, V: Part, V_idx: TreeNodeIndex, partition: &mut Partition, tree: &mut Tree) {
     // if G has an isolated vertex then let w be that vertex
     // else let w be the highest numbered vertex
     // if G has only one vertex then return {w};
@@ -103,47 +111,54 @@ fn rop(graph: &mut Graph, p: Part, partition: &mut Partition, tree: &mut Tree, c
     //   foreach set X_i do Let ROP(G|X_i) be the i_th child of V(G)
     // return T
 
-    let try_single_vertex = |part: &Part, partition: &Partition, idx: TreeNodeIndex, tree: &mut Tree| -> bool {
-        if let Some(v) = part.try_into_node(partition) {
-            tree[idx].kind = Kind::Vertex(v);
+    assert_eq!(V.len(), graph.node_count());
+
+    let try_single_vertex = |Y: &Part, Y_idx: TreeNodeIndex, partition: &Partition, tree: &mut Tree| -> bool {
+        if let Some(v) = Y.try_into_node(partition) {
+            tree[Y_idx].kind = Kind::Vertex(v);
             true
         } else { false }
     };
 
-    if try_single_vertex(&p, partition, current, tree) { return; }
+    if try_single_vertex(&V, V_idx, partition, tree) { return; }
 
-    let mut stack = vec![(p, current)];
-    while let Some((part, current)) = stack.pop() {
-        assert!(part.len() >= 2);
+    let mut next = Some((V, V_idx));
+    while let Some((X, X_idx)) = next.take() {
+        assert!(X.len() >= 2);
 
-        let w = rop_find_w(graph, &part, partition);
-        let subpartition = part.separate_single_vertex(partition, w);
+        // choose w
+        let w = rop_find_w(graph, &X, partition);
+        // [{w}, X - {v}]
+        let subpartition = X.separate_single_vertex(partition, w);
 
+        // OVP(G[X], [{w}, X - {w}])
         let mut num_edges = 0;
         ovp(graph, subpartition, partition, |e| { num_edges += e.len() });
 
-        let xs: Vec<_> = subpartition.parts(partition).collect();
-        let kind = determine_spine_node_kind(&xs, num_edges);
-        tree[current].kind = kind;
+        let ys: Vec<_> = subpartition.parts(partition).collect();
+        tree[X_idx].kind = determine_spine_node_kind(&ys, num_edges);
 
-        for x in xs {
-            let t_x = tree.new_node(Kind::default());
-            tree[current].children.push(t_x);
-            if !try_single_vertex(&x, partition, t_x, tree) {
-                stack.push((x, t_x));
+        // recurse on G[Y] for Y in OVP(G[X], [{w},  X - {w}])
+        // exactly one child of X in MD(G[X]) is a non-singleton node
+        for Y in ys {
+            let Y_idx = tree.new_node(Kind::default());
+            tree[X_idx].children.push(Y_idx);
+            if !try_single_vertex(&Y, Y_idx, partition, tree) {
+                next = Some((Y, Y_idx));
             }
         }
     }
 }
 
 
-fn rop_find_w(graph: &mut Graph, p: &Part, partition: &mut Partition) -> NodeIndex {
+#[allow(non_snake_case)]
+fn rop_find_w(graph: &mut Graph, X: &Part, partition: &mut Partition) -> NodeIndex {
+    // If G has a isolated vertex let w be that vertex
+    // else let w be the highest numbered vertex
     let mut max = NodeIndex::invalid();
     let mut max_label = 0;
-    for u in p.nodes_raw(partition) {
-        if graph.degree(u.node) == 0 {
-            return u.node;
-        }
+    for u in X.nodes_raw(partition) {
+        if graph.degree(u.node) == 0 { return u.node; }
         if !max.is_valid() || u.label > max_label {
             max = u.node;
             max_label = u.label;
@@ -242,7 +257,6 @@ pub(crate) mod tree {
 }
 
 mod utils {
-    use std::collections::HashMap;
     use crate::algos::tree::{Kind, Tree, TreeNodeIndex};
     use crate::algos::tree::Kind::{Prime, Series, Parallel, Vertex};
     use crate::graph::{Graph, NodeIndex};
@@ -258,70 +272,72 @@ mod utils {
 
     /// Try to apply the case that no further parts have been split, i.e. |P(G[X], v)| = 2.
     /// This is not necessary for correctness, but avoids building tiny quotient graphs.
-    pub(crate) fn try_trivial_quotient(removed: &[(NodeIndex, NodeIndex)], p: SubPartition, partition: &Partition, current: TreeNodeIndex, tree: &mut Tree) -> Option<(Part, TreeNodeIndex)> {
+    #[allow(non_snake_case)]
+    pub(crate) fn try_trivial_quotient(crossing_edges: &[(NodeIndex, NodeIndex)], p: SubPartition, partition: &Partition, current: TreeNodeIndex, tree: &mut Tree) -> Option<(Part, TreeNodeIndex)> {
         let nodes = partition.nodes(&p);
         assert_ne!(nodes[0].part, nodes[1].part, "The subpartition started as [{{v}}, X - {{v}}].");
         if nodes[1].part != nodes[nodes.len() - 1].part {
             return None;
         }
+        // We have the case that P(G[X], v) = [{v}, X - {v}]
         let v = nodes[0].node;
-        let p1 = partition.part_by_index(nodes[1].part);
-        let kind = if removed.is_empty() { Parallel } else { Series };
-        tree[current].kind = kind;
-        let a = tree.new_node(Vertex(v));
-        let b = tree.new_node(Kind::default());
-        tree[current].children.extend([a, b]);
-        assert!(p1.len() > 1, "The case |X| = 2 should be covered earlier. |X| > 2 and |P(G[X], v)| = 2 imply |p1| = |X - {{v}}| > 1.");
-        Some((p1, b))
+        let B = partition.part_by_index(nodes[1].part);
+        tree[current].kind = if crossing_edges.is_empty() { Parallel } else { Series };
+        let A_idx = tree.new_node(Vertex(v));
+        let B_idx = tree.new_node(Kind::default());
+        tree[current].children.extend([A_idx, B_idx]);
+        assert!(B.len() > 1, "The case |X| = 2 should be covered earlier. |X| > 2 and |P(G[X], v)| = 2 imply |p1| = |X - {{v}}| > 1.");
+        Some((B, B_idx))
     }
 
-    pub(crate) fn build_quotient(removed: &mut Vec<(NodeIndex, NodeIndex)>,
+    #[allow(non_snake_case)]
+    pub(crate) fn build_quotient(crossing_edges: &mut Vec<(NodeIndex, NodeIndex)>,
                                  p: SubPartition, partition: &Partition,
-                                 inner_vertex: NodeIndex) -> (Graph, NodeIndex, Vec<(Part, TreeNodeIndex)>) {
-        let mut new_part_ids = HashMap::with_hasher(nohash_hasher::BuildNoHashHasher::<u32>::default());
-        let mut ys = vec![];
-        let mut n_quotient = NodeIndex::new(0);
-        for part in p.part_indices(partition) {
-            new_part_ids.insert(part.index() as u32, n_quotient);
-            ys.push((partition.part_by_index(part), TreeNodeIndex::invalid()));
-            n_quotient = (u32::from(n_quotient) + 1).into();
-        }
+                                 inner_vertex: NodeIndex, map: &mut [NodeIndex])
+                                 -> (Graph, NodeIndex, Vec<(Part, TreeNodeIndex)>) {
+        // map parts Y_1,...,Y_k to indices 1,...,k
+        let ys: Vec<_> = p.part_indices(partition)
+            .enumerate()
+            .map(|(node_idx, Y_idx)| {
+                let Y = partition.part_by_index(Y_idx);
+                let node_idx = node_idx.into();
+                for u in Y.nodes(partition) {
+                    map[u.index()] = node_idx;
+                }
+                (partition.part_by_index(Y_idx), TreeNodeIndex::invalid())
+            }).collect();
 
-        let map = |x: NodeIndex| {
-            *new_part_ids.get(&(partition.part_by_node(x).index() as u32)).unwrap()
-        };
-
-        for (u, v) in removed.iter_mut() {
-            *u = map(*u);
-            *v = map(*v);
+        for (u, v) in crossing_edges.iter_mut() {
+            *u = map[u.index()];
+            *v = map[v.index()];
         }
-        removed.sort();
-        removed.dedup();
-        (Graph::from_edges(n_quotient.index(), removed.iter().copied()), map(inner_vertex), ys)
+        crossing_edges.sort_unstable();
+        crossing_edges.dedup();
+        (Graph::from_edges(ys.len(), crossing_edges.iter().copied()), map[inner_vertex.index()], ys)
     }
 
     /// Check if the nodes of the part represent a series or parallel module and return its kind if
     /// that's the case
-    pub(crate) fn check_series_parallel(graph: &Graph, part: &Part, partition: &Partition) -> Option<Kind> {
-        assert!(part.len() >= 2);
+    #[allow(non_snake_case)]
+    pub(crate) fn check_series_parallel(graph: &Graph, X: &Part, partition: &Partition) -> Option<Kind> {
+        assert!(X.len() >= 2);
         if graph.edge_count() == 0 { return Some(Parallel); }
-        let mut nodes = part.nodes(partition);
-        let v0 = nodes.next().unwrap();
-        let d0 = graph.degree(v0);
-        if (d0 == 0 || d0 == part.len() - 1) && nodes.all(|v| graph.degree(v) == d0) {
-            let kind = if d0 == 0 { Parallel } else { Series };
-            Some(kind)
+        let mut nodes = X.nodes(partition);
+        let d = graph.degree(nodes.next().unwrap());
+        if (d == 0 || d == X.len() - 1) && nodes.all(|v| graph.degree(v) == d) {
+            Some(if d == 0 { Parallel } else { Series })
         } else {
             None
         }
     }
 
     /// Assign the given kind to the current node and add all nodes in the part as its children.
-    pub(crate) fn add_all_nodes_as_children(kind: Kind, part: Part, partition: &Partition, tree: &mut Tree, current: TreeNodeIndex) {
-        tree[current].kind = kind;
-        for v in part.nodes(partition) {
+    #[allow(non_snake_case)]
+    pub(crate) fn add_all_nodes_as_children(X: Part, X_idx: TreeNodeIndex, kind: Kind, partition: &Partition, tree: &mut Tree) {
+        tree[X_idx].kind = kind;
+        for v in X.nodes(partition) {
             let c = tree.new_node(Vertex(v));
-            tree[current].children.push(c);
+            tree[X_idx].children.push(c);
         }
     }
 }

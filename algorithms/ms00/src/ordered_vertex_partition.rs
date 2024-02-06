@@ -4,18 +4,18 @@ use crate::partition::{divide, PartIndex, Partition, SubPartition};
 pub(crate) fn ovp<F>(graph: &mut Graph, p: SubPartition, partition: &mut Partition, mut f: F)
     where F: FnMut(&[(NodeIndex, NodeIndex, EdgeIndex)])
 {
-    let add = |stack: &mut Vec<SubPartition>, partition: &Partition, p: SubPartition| {
+    let add_if_more_than_one_part = |stack: &mut Vec<SubPartition>, partition: &Partition, p: SubPartition| {
         if has_at_least_two_parts(&p, partition) { stack.push(p) }
     };
 
     let mut stack = vec![];
-    add(&mut stack, partition, p);
+    add_if_more_than_one_part(&mut stack, partition, p);
 
     while let Some(p) = stack.pop() {
         let (q, q_prime) = split(graph, p, partition, &mut f);
 
-        add(&mut stack, partition, q_prime);
-        add(&mut stack, partition, q);
+        add_if_more_than_one_part(&mut stack, partition, q_prime);
+        add_if_more_than_one_part(&mut stack, partition, q);
     }
 }
 

@@ -98,10 +98,10 @@ impl Graph {
                     edges[b_twin.index()].twin = a;
                     nodes[x.index()].end = b;
                 } else {
-                    assert_ne!(e, xy);
+                    debug_assert_ne!(e, xy);
                     let e = EdgeIndex::new(e.index() + 1);
-                    assert!(e < next_start);
-                    assert!(edges[e.index()].deleted);
+                    debug_assert!(e < next_start);
+                    debug_assert!(edges[e.index()].deleted);
                     nodes[x.index()].end = e;
                 }
             } else {
@@ -138,6 +138,7 @@ impl Graph {
         self.num_deleted_edges = 0;
     }
 
+    #[cfg(test)]
     fn find_edge(&self, u: NodeIndex, v: NodeIndex) -> Option<EdgeIndex> {
         let Node { start, end } = self.nodes[u.index()];
         self.edges[start.index()..end.index()].iter().position(|e| e.head == v).map(|pos| EdgeIndex::new(start.index() + pos))
@@ -167,13 +168,6 @@ impl Graph {
             }
         }
         true
-    }
-}
-
-impl Graph {
-    pub(crate) fn incident_edges_raw(&self, node: NodeIndex) -> &[Edge] {
-        let Node { start, end } = self.nodes[node.index()];
-        &self.edges[start.index()..end.index()]
     }
 }
 

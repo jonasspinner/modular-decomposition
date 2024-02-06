@@ -50,7 +50,8 @@ impl Partition {
         let position: Vec<_> = (0..size).map(NodePos::new).collect();
         let gen = Gen(0);
         let nodes: Vec<_> = (0..size).map(|i| Node { node: NodeIndex::new(i), label: i as u32, part: PartIndex::new(0) }).collect();
-        let parts = vec![PartInner { start: NodePos::new(0), len: size as _, gen }];
+        let mut parts = Vec::with_capacity(size);
+        parts.push(PartInner { start: NodePos::new(0), len: size as _, gen });
         let removed = vec![];
         Self { position, nodes, parts, removed, gen }
     }
@@ -66,6 +67,10 @@ impl Partition {
     }
     fn remove_part(&mut self, part: PartIndex) {
         self.removed.push(part);
+    }
+
+    pub(crate) fn part_index_upper_bound(&self) -> PartIndex {
+        PartIndex::new(self.parts.len())
     }
 
     pub(crate) fn part_by_index(&self, idx: PartIndex) -> Part {
@@ -99,11 +104,9 @@ impl Partition {
             let prev = (start.index() != 0).then(|| {
                 self.nodes[start.index() - 1].part
             });
-            let new_part = if prev.is_some_and(|prev| self.parts[prev.index()].gen == self.gen) {
-                prev.unwrap()
-            } else {
-                self.new_part(start, 0)
-            };
+            let new_part = prev
+                .filter(|prev| self.parts[prev.index()].gen == self.gen)
+                .unwrap_or_else(|| self.new_part(start, 0));
 
             self.nodes.swap(start.index(), pos.index());
             self.position[pivot.index()] = start;
@@ -128,7 +131,6 @@ impl Partition {
         self.gen.0 += 1;
         for pivot in pivots {
             let pivot: NodeIndex = pivot.into();
-            //println!("pivot {} / gen {}", pivot.index(), self.gen.0);
 
             let pos = self.position[pivot.index()];
             let part = self.nodes[pos.index()].part;
@@ -137,11 +139,9 @@ impl Partition {
             let next = (last.index() + 1 != self.nodes.len()).then(|| {
                 self.nodes[last.index() + 1].part
             });
-            let new_part = if next.is_some_and(|next| self.parts[next.index()].gen == self.gen) {
-                next.unwrap()
-            } else {
-                self.new_part(NodePos::new(last.0 as usize + 1), 0)
-            };
+            let new_part = next
+                .filter(|next| self.parts[next.index()].gen == self.gen)
+                .unwrap_or_else(|| self.new_part(NodePos::new(last.0 as usize + 1), 0));
 
             self.nodes.swap(last.index(), pos.index());
             self.position[pivot.index()] = last;
@@ -311,6 +311,11 @@ impl SubPartition {
 
 
 pub(crate) fn divide(p: SubPartition, partition: &Partition) -> (PartIndex, SubPartition, SubPartition, Dir) {
+    // [A, B, ..., C, D]
+    // either
+    //   X=A, [A], [B, ..., D], Backward or
+    //   X=D, [D], [A, ..., C], Forward
+    // such that |X| < (|A| + ... + |D|) / 2
     let first = p.first(partition);
     let last = p.last(partition);
     assert_ne!(first, last);

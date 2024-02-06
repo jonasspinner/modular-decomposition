@@ -9,5 +9,4 @@ edition = "2021"
 common = { path = "../../common" }
 petgraph.workspace = true
 rand = "0.8.5"
-nohash-hasher = "0.2.0"
 tracing.workspace = true
