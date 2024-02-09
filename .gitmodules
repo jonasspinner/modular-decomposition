@@ -7,3 +7,6 @@
 [submodule "extern/lyt15"]
 	path = extern/lyt15
 	url = git@github.com:LyteFM/modular-decomposition.git
+[submodule "algorithms/miz23-md-cpp-sys/extern"]
+	path = algorithms/miz23-md-cpp-sys/extern
+	url = git@github.com:mogproject/modular-decomposition.git
