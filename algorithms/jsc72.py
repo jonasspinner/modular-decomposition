@@ -5,7 +5,6 @@ from pathlib import Path
 import itertools
 from typing import List
 from datetime import datetime
-import timeit
 
 import sys
 
@@ -88,12 +87,17 @@ def modular_decomposition(graph: nx.Graph) -> nx.DiGraph:
     representative = [u for u in graph.nodes]
 
     while graph.number_of_nodes() > 1:
-        print(graph.number_of_nodes())
         modules = find_series_parallel_modules(graph)
         if condense(graph, modules, representative, md, 'series/parallel'): continue
         modules = find_prime_modules(graph)
         condense(graph, modules, representative, md, 'prime')
     return nx.convert_node_labels_to_integers(md)
+
+
+def stats_line(input_name, algo, time, status) -> str:
+    if time is None:
+        time = "NaN"
+    return f"{{\"input\": \"{input_name}\", \"algo\": \"{algo}\", \"time\": {time}, \"status\": \"{status}\"}}"
 
 
 def main():
@@ -103,21 +107,36 @@ def main():
     parser.add_argument("--stats", type=Path, required=False)
 
     args = parser.parse_args()
+
     graph = util.read_metis(args.input)
+    input_name = args.input.name
+    algo = "jsc72-py"
+
+    line = stats_line(input_name, algo, None, "unfinished")
+    if args.stats is not None:
+        with args.stats.open("w") as out:
+            out.write(f"{line}\n")
 
     start = datetime.now()
     md = modular_decomposition(graph)
     end = datetime.now()
+
     if args.output is not None:
         with args.output.open("w") as out:
             util.write_md_tree_adj(out, md)
+
+    time = (end - start).microseconds
+    line = stats_line(input_name, algo, time, "finished")
     if args.stats is not None:
         with args.stats.open("w") as out:
-            out.write(f"input {args.input.name}\n")
-            out.write("algo \"jsc72-py\"\n")
-            out.write(f"time {(end - start).microseconds}\n")
-        print()
+            out.write(f"{line}\n")
+    else:
+        print(line)
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(e)
+        exit(-1)
