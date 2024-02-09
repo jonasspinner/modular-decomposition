@@ -4,7 +4,7 @@ members = [
 #    "algorithms/jsc72",
 #    "algorithms/kar19-jl",
     "algorithms/kar19-rs",
-    "algorithms/lyt15-cpp-wrapper",
+    "algorithms/lyt15",
 #    "algorithms/lyt15-rs",
     "algorithms/miz23-md-cpp-sys",
     "algorithms/miz23-md-cpp",
