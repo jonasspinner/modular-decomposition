@@ -163,7 +163,7 @@ impl MDComputeNode {
 
 pub(crate) fn compute(graph: &Graph) -> (Forest<MDComputeNode>, Option<NodeIdx>) {
     let n = graph.number_of_nodes();
-    let mut tree = Forest::<MDComputeNode>::with_capacity(n + 256);
+    let mut tree = Forest::<MDComputeNode>::with_capacity(2 * n);
     if n == 0 {
         return (tree, None);
     }

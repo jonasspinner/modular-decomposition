@@ -24,7 +24,7 @@ pub(crate) fn modular_decomposition(graph: &mut Graph) -> Vec<TreeNode> {
         return vec![TreeNode::new(Kind::Vertex(NodeIndex::new(0)))];
     }
 
-    let mut tree = Tree::with_capacity(graph.node_count() + 256);
+    let mut tree = Tree::with_capacity(2 * graph.node_count());
     let root = tree.new_node(Kind::default());
 
     let mut crossing_edges = vec![];
