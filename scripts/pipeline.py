@@ -88,6 +88,17 @@ run.add("generate_gnm",
         },
         creates_file="[[output]]")
 
+run.add("generate_gnm_18",
+        "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
+        {
+            "n": [2 ** 18],
+            "m": list(reversed(range(0, 2 ** 24 + 1, 2 ** 18))),
+            "seed": list(range(1)),
+            "name": "gnm_n=[[n]]-m=[[m]]-seed=[[seed]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
 
 def add_generate_cograph_uni_deg(k, n, a: int, b: int):
     run.add(f"generate_cograph-uni-deg_{k}",
@@ -108,6 +119,10 @@ def add_generate_cograph_uni_deg(k, n, a: int, b: int):
 add_generate_cograph_uni_deg(1, [2 ** 8, 2 ** 10, 2 ** 12], 2, 8)
 
 add_generate_cograph_uni_deg(2, [2 ** 8, 2 ** 10, 2 ** 12], 256, 256)
+
+add_generate_cograph_uni_deg(3, [2 ** 12], 512, 2048)
+
+add_generate_cograph_uni_deg(4, [2 ** 13], 256, 256)
 
 run.add("generate_path",
         "python3 scripts/generate.py path [[n]] --output [[output]]",
@@ -203,7 +218,7 @@ run.add("md",
         {
             "algo": algos,
             "name": names,
-            "repetition": list(range(5)),
+            "repetition": list(range(3)),
             "input": "data/02-graphs/[[name]]",
             "output": "data/05-md-trees/[[algo]]/[[name]].md",
             "stats": "data/04-algo-runs/[[algo]]/[[name]]_rep=[[repetition]].runstats",
