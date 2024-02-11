@@ -2,6 +2,7 @@ mod base;
 mod improved;
 
 use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
+use tracing::info;
 use common::modular_decomposition::MDNodeKind;
 
 
@@ -23,8 +24,9 @@ pub struct Prepared {
 
 pub fn prepare<N, E>(graph: &UnGraph<N, E>) -> Prepared
 {
+    info!(n = graph.node_count(), m = graph.edge_count());
     let mut graph: Vec<Vec<NodeIndex>> = graph.node_indices().map(|u| graph.neighbors(u).collect()).collect();
-    graph.iter_mut().for_each(|neighbors| neighbors.sort());
+    graph.iter_mut().for_each(|neighbors| neighbors.sort_unstable());
     Prepared { graph }
 }
 

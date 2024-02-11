@@ -5,7 +5,7 @@ use tracing::{info, info_span, instrument};
 use crate::improved::factorizing_permutation::Permutation;
 
 
-#[allow(dead_code)]
+#[instrument(skip_all)]
 pub(crate) fn modular_decomposition(graph: &mut [Vec<NodeIndex>]) -> DiGraph<MDNodeKind, ()> {
     let n = graph.len();
     if n == 0 { return DiGraph::new(); }
@@ -19,15 +19,11 @@ pub(crate) fn modular_decomposition(graph: &mut [Vec<NodeIndex>]) -> DiGraph<MDN
 
     build_parenthesizing(graph, &mut op, &mut cl, &mut lc, &mut uc, &p);
 
-    info!(n);
-
     remove_non_module_dummy_nodes(&mut op, &mut cl, &lc, &uc);
 
     create_consecutive_twin_nodes(&mut op, &mut cl, &lc, &uc);
 
-    remove_singleton_dummy_nodes(&mut op, &mut cl);
-
-    let tree = build_tree(graph, &op, &cl, &p);
+    let tree = convert_to_md_tree(graph, &op, &cl, &p);
 
     info!(number_of_nodes = tree.node_count(), number_of_inner_nodes = tree.node_count() - graph.len());
 
@@ -54,7 +50,7 @@ pub(crate) fn init_parenthesizing(n: usize) -> (Vec<u32>, Vec<u32>, Vec<u32>, Ve
 pub(crate) fn build_parenthesizing(graph: &mut [Vec<NodeIndex>], op: &mut [u32], cl: &mut [u32], lc: &mut [u32], uc: &mut [u32], p: &Permutation) {
     {
         let _span = info_span!("sort_neighbors_by_pos").entered();
-        graph.iter_mut().for_each(|neighbors| neighbors.sort_by_key(|u| { p.position(*u) as u32 }));
+        graph.iter_mut().for_each(|neighbors| neighbors.sort_unstable_by_key(|u| { p.position(*u) as u32 }));
     }
 
     fn next_unequal<'a>(mut a: impl Iterator<Item=&'a NodeIndex>, mut b: impl Iterator<Item=&'a NodeIndex>, f: impl Fn(NodeIndex) -> usize, g: impl Fn(usize, usize) -> usize) -> Option<usize> {
@@ -74,6 +70,12 @@ pub(crate) fn build_parenthesizing(graph: &mut [Vec<NodeIndex>], op: &mut [u32],
     let last = |a: &[NodeIndex], b: &[NodeIndex]| -> Option<usize> {
         next_unequal(a.iter().rev(), b.iter().rev(), |u| p.position(u), usize::max)
     };
+
+    // To find the first and last vertices (in respect to the permutation) which are not in both
+    // neighborhoods of consecutive vertices, the sorted neighborhoods are traversed from the
+    // beginning and end, stopping when they first disagree.
+    // Every neighborhood is traversed at most twice, once for each adjacent vertex in the
+    // permutation. This results in a total O(n + m) running time.
 
     let n = p.len();
     for j in 0..n - 1 {
@@ -170,11 +172,14 @@ pub(crate) fn remove_non_module_dummy_nodes(op: &mut [u32], cl: &mut [u32], lc: 
                 .chain(nodes.iter().map(|n| n.last_cutter)).max().unwrap_or(last_vertex));
 
         let info = Info::new(first_vertex, last_vertex, first_cutter, last_cutter);
+        // Check if we are at a genuine node, i.e. the node of the fracture tree represents a module.
         if first_vertex < last_vertex && first_vertex <= first_cutter && last_cutter <= last_vertex {
             return info;
         }
-        assert!(op[info.first_vertex as usize] >= 1);
-        assert!(cl[info.last_vertex as usize] >= 1);
+        // As this is a post-order traversal, we already walked the parenthesis up to the last
+        // vertex and we can change the parenthesis expression without affecting the remaining
+        // traversal.
+        // Removing the pair parenthesis deletes the node from the fracture tree.
         op[info.first_vertex as usize] -= 1;
         cl[info.last_vertex as usize] -= 1;
         info
@@ -182,6 +187,7 @@ pub(crate) fn remove_non_module_dummy_nodes(op: &mut [u32], cl: &mut [u32], lc: 
 
 
     let mut s = SegmentedStack::with_capacity(op.len());
+    // We do a post-order traversal of the fracture tree induced by the parenthesized permutation.
     for j in 0..op.len() {
         s.extend(op[j] as _);
         s.add(handle_vertex_node(j));
@@ -206,106 +212,107 @@ pub(crate) fn create_consecutive_twin_nodes(op: &mut [u32], cl: &mut [u32], lc: 
         for c in (0..cl[k] + 1).rev() {
             let (j, i) = s.pop().unwrap();
 
-            l = i; // continue twin chain by default
+            l = i;
             if i >= j { continue; }
             let (a, b) = (lc[j - 1] as usize, uc[j - 1] as usize);
             if i <= a && a < b && b <= k {
-                // this node and prev are twins
                 if c > 0 {
-                    // not last parens ∴ last twin
                     op[i] += 1;
                     cl[k] += 1;
                     l = k + 1;
                 }
             } else {
-                // this node and prev aren't twins
                 if i < j - 1 {
                     op[i] += 1;
                     cl[j - 1] += 1;
                 }
-                l = j; // this node starts new chain
+                l = j;
             }
         }
     }
 }
 
 #[instrument(skip_all)]
-pub(crate) fn remove_singleton_dummy_nodes(op: &mut [u32], cl: &mut [u32]) {
-    let n = op.len();
-    let mut s = Vec::with_capacity(n);
-
-    for j in 0..n {
-        s.extend(std::iter::repeat(j).take(op[j] as _));
-        let mut i_ = usize::MAX;
-        for _ in 0..cl[j] {
-            let i = s.pop().unwrap();
-            if i == i_ {
-                op[i] -= 1;
-                cl[j] -= 1;
-            }
-            i_ = i;
-        }
-    }
-}
-
-#[instrument(skip_all)]
-#[allow(unreachable_code)]
-pub(crate) fn build_tree(graph: &[Vec<NodeIndex>], op: &[u32], cl: &[u32], p: &Permutation) -> DiGraph<MDNodeKind, ()> {
+pub(crate) fn convert_to_md_tree(graph: &[Vec<NodeIndex>], op: &[u32], cl: &[u32], p: &Permutation) -> DiGraph<MDNodeKind, ()> {
+    // Do a post-order traversal of the fracture tree (represented by op, cl and p), skipping nodes
+    // with a single child, determining the module type of the others and adding it to the modular
+    // decomposition tree.
     let n = graph.len();
 
-    // Calculate the degrees between children of a module.
-    // Every module keeps a graph node as a representative. Mark the representatives of the children.
-    // For each representative, iterate over its neighbors. If a neighbor is also a representative,
-    // increment the degree.
+    let handle_vertex_node = |t: &mut DiGraph<MDNodeKind, ()>, x: NodeIndex| -> (NodeIndex, NodeIndex) {
+        (x, t.add_node(MDNodeKind::Vertex(x.index())))
+    };
 
     let mut marked = vec![0; n];
     let mut gen = 0;
 
-    let mut determine_node_kind = |nodes: &[(NodeIndex, NodeIndex)]| -> (NodeIndex, MDNodeKind) {
+    let mut determine_node_kind = |t: &mut DiGraph<MDNodeKind, ()>, nodes: &[(NodeIndex, NodeIndex)]| -> (NodeIndex, MDNodeKind) {
+        // Calculate the degrees between children of a module.
+        // Every module keeps a graph node as a representative. Mark the representatives of the children.
+        // For each representative, iterate over its neighbors. If a neighbor is also a representative,
+        // increment the degree.
+
         gen += 1;
         for (x, _) in nodes { marked[x.index()] = gen; }
 
         let quotient_degree = |x: NodeIndex| -> usize {
             graph[x.index()].iter().filter(|w| marked[w.index()] == gen).count()
         };
+        // Choosing the node with the minimum degree ensures a linear total running time.
+        // Let n be the number of leaves corresponding to the vertices of the graph. In the worst
+        // case, every inner node has exactly two children and we have at most n - 1 inner nodes.
+        // For each inner node, we can choose one of the leaves of its subtree, such that every
+        // inner node gets assigned a unique vertex as a representative. Leaving one vertex
+        // unassigned in the tree. Every inner node has work in order of the number of its children
+        // and the degree of its representative in the original graph. The work for the children is
+        // O(n) in total and the work for the representatives is O(m) in total. By choosing the
+        // representatives to be the vertex with the lowest degree in the subtree, the work is
+        // bounded by the previous assignment of representatives. This proves a total running time
+        // of O(n + m) with this strategy.
         let &(y, _) = nodes.iter().min_by_key(|(x, _)| graph[x.index()].len()).unwrap();
 
-        let k = nodes.len();
+        // It is enough to look at a single vertex and its degree in the quotient graph. Let y be one
+        // of the vertices and k be the number of vertices.
+        // If the quotient has only two vertices, it is either series or parallel and we can
+        // distinguish these case by calculating the degree of one of the vertices.
+        // Now assume there are at least three vertices. If y does not have degree 0
+        // or k - 1, the graph cannot be series or parallel. If y does have degree 0, then y and
+        // the other vertices would be the children of a parallel node. It y does have degree k - 1,
+        // then they would be the children of a series node.
         let d0 = quotient_degree(y);
-        let kind = if d0 == 0 || d0 == (k - 1) {
+        let kind = if d0 == 0 {
+            MDNodeKind::Parallel
+        } else if d0 == (nodes.len() - 1) {
+            MDNodeKind::Series
+        } else { MDNodeKind::Prime };
+
+        if kind != MDNodeKind::Prime {
             debug_assert!(nodes.iter().map(|(y, _)| quotient_degree(*y)).all(|d| d == d0));
-            if d0 == 0 { MDNodeKind::Parallel } else { MDNodeKind::Series }
-        } else {
-            MDNodeKind::Prime
-        };
+            debug_assert!(nodes.iter().all(|(_, u)| t[*u] != kind), "{:?}", kind);
+        }
 
         (y, kind)
     };
 
-    let mut add_node = |t: &mut DiGraph<MDNodeKind, ()>, nodes: &[(NodeIndex, NodeIndex)]| -> (NodeIndex, NodeIndex) {
-        assert!(nodes.len() > 1);
-        let (y, kind) = determine_node_kind(nodes);
-
-        if kind != MDNodeKind::Prime {
-            assert!(nodes.iter().all(|(_, u)| t[*u] != kind), "{:?}", kind);
-        }
-
+    let mut handle_inner_node = |t: &mut DiGraph<MDNodeKind, ()>, nodes: &[(NodeIndex, NodeIndex)]| -> (NodeIndex, NodeIndex) {
+        if nodes.len() == 1 { return nodes[0]; }
+        let (y, kind) = determine_node_kind(t, nodes);
         let idx = t.add_node(kind);
-        for (_, u) in nodes {
-            t.add_edge(idx, *u, ());
-        }
+        for (_, u) in nodes { t.add_edge(idx, *u, ()); }
         (y, idx)
     };
 
-    let mut t = DiGraph::new();
+    let mut t = DiGraph::with_capacity(n + 256, n + 256);
 
-    let mut s = SegmentedStack::with_capacity(op.len());
+    // We keep track of (y, u) where u is a node in the tree and y is a representative of the
+    // vertices in the subtree of u, i.e. one of the its leaves.
+    let mut s = SegmentedStack::with_capacity(n);
+    // We do a post-order traversal of the fracture tree induced by the parenthesized permutation.
     for (j, x) in p.iter().enumerate() {
         s.extend(op[j] as _);
-        let (x, idx) = (x, t.add_node(MDNodeKind::Vertex(x.index())));
-        s.add((x, idx));
+        s.add(handle_vertex_node(&mut t, x));
         for _ in 0..cl[j] {
-            let (x, idx) = add_node(&mut t, s.pop());
+            let (x, idx) = handle_inner_node(&mut t, s.pop());
             s.add((x, idx));
         }
     }
@@ -429,13 +436,17 @@ pub(crate) mod factorizing_permutation {
                 None
             } else { Some(X_idx) };
 
-            if let Some(A_idx) = A_idx {
-                if let Some(N_idx) = N_idx {
-                    if self.part(A_idx).seq.len <= self.part(N_idx).seq.len {
-                        (Some(A_idx), N_idx)
-                    } else { (Some(N_idx), A_idx) }
-                } else { (None, A_idx) }
-            } else { (None, N_idx.unwrap()) }
+            match (A_idx, N_idx) {
+                (Some(A_idx), Some(N_idx)) => {
+                    let (S, L) = if self.part(A_idx).seq.len <= self.part(N_idx).seq.len {
+                        (A_idx, N_idx)
+                    } else { (N_idx, A_idx) };
+                    (Some(S), L)
+                }
+                (Some(A_idx), None) => (None, A_idx),
+                (None, Some(N_idx)) => (None, N_idx),
+                _ => unreachable!(),
+            }
         }
 
         fn refine(&mut self, y_pos: NodePos, Y: Seq) {
@@ -533,6 +544,7 @@ pub(crate) mod factorizing_permutation {
             }
         }
 
+        #[inline]
         fn should_insert_right(&self, X: Seq, y_pos: NodePos) -> bool {
             let (a, b) = if y_pos < self.center_pos { (y_pos, self.center_pos) } else { (self.center_pos, y_pos) };
             let x = X.first;
@@ -613,10 +625,11 @@ pub(crate) mod factorizing_permutation {
             debug_assert!(self.part(self.node(first).part).seq.contains(first));
         }
 
+        #[inline]
         fn swap_nodes(&mut self, a: NodePos, b: NodePos) {
             let Node { part: a_part, node: u } = *self.node(a);
             let Node { part: b_part, node: v } = *self.node(b);
-            assert_eq!(a_part, b_part);
+            debug_assert_eq!(a_part, b_part);
             self.positions.swap(u.index(), v.index());
             self.nodes.swap(a.index(), b.index());
 
@@ -624,28 +637,32 @@ pub(crate) mod factorizing_permutation {
             debug_assert_eq!(self.node(self.position(v)).node, v);
         }
 
+        #[inline]
         fn part(&self, idx: PartIndex) -> &Part { &self.parts[idx.index()] }
+        #[inline]
         fn part_mut(&mut self, idx: PartIndex) -> &mut Part { &mut self.parts[idx.index()] }
+        #[inline]
         fn node(&self, pos: NodePos) -> &Node { &self.nodes[pos.index()] }
+        #[inline]
         fn node_mut(&mut self, pos: NodePos) -> &mut Node { &mut self.nodes[pos.index()] }
+        #[inline]
         fn position(&self, node: NodeIndex) -> NodePos { self.positions[node.index()] }
 
+        #[inline]
         fn remove_part(&mut self, idx: PartIndex) {
-            assert!(self.part(idx).seq.is_empty());
-            assert!(!self.part(idx).is_in_pivots());
-            assert!(!self.part(idx).is_in_modules());
+            debug_assert!(self.part(idx).seq.is_empty());
+            debug_assert!(!self.part(idx).is_in_pivots());
+            debug_assert!(!self.part(idx).is_in_modules());
             self.removed.push(idx);
         }
 
         fn new_part(&mut self, first: NodePos, len: u32, marked: bool) -> PartIndex {
-            let idx = if let Some(idx) = self.removed.pop() {
-                *self.part_mut(idx) = Part::new(Seq { first, len });
+            let idx = self.removed.pop().unwrap_or_else(|| {
+                let idx = PartIndex(self.parts.len() as _);
+                self.parts.push(Part::new(Seq::new(NodePos(0), 0)));
                 idx
-            } else {
-                let idx = PartIndex::new(self.parts.len());
-                self.parts.push(Part::new(Seq { first, len }));
-                idx
-            };
+            });
+            *self.part_mut(idx) = Part::new(Seq { first, len });
             self.part_mut(idx).set_marked(marked);
             idx
         }
@@ -691,7 +708,7 @@ pub(crate) mod factorizing_permutation {
 
             let positions = (0..n).map(NodePos::new).collect();
             let nodes = (0..n).map(|u| Node { node: NodeIndex::new(u), part: PartIndex::new(0) }).collect();
-            let mut parts = Vec::with_capacity(n);
+            let mut parts = Vec::with_capacity(n + 1);
             parts.push(Part::new(Seq::new(NodePos::new(0), n as u32)));
             let removed = vec![];
             let pivots = vec![];
@@ -928,7 +945,7 @@ pub(crate) mod factorizing_permutation {
 mod test {
     use petgraph::dot::{Config, Dot};
     use petgraph::graph::{NodeIndex, UnGraph};
-    use crate::improved::{build_parenthesizing, create_consecutive_twin_nodes, init_parenthesizing, modular_decomposition, remove_non_module_dummy_nodes, remove_singleton_dummy_nodes};
+    use crate::improved::{build_parenthesizing, create_consecutive_twin_nodes, init_parenthesizing, modular_decomposition, remove_non_module_dummy_nodes};
     use crate::improved::factorizing_permutation::Permutation;
 
     fn print_parenthesis(op: &[u32], cl: &[u32], permutation: &Permutation) {
@@ -970,12 +987,6 @@ mod test {
         assert_eq!(op, [5, 0, 0, 0, 0, 0, 0]);
         assert_eq!(cl, [0, 2, 0, 1, 0, 0, 2]);
 
-        print_parenthesis(&op, &cl, &permutation);
-
-        remove_singleton_dummy_nodes(&mut op, &mut cl);
-
-        assert_eq!(op, [3, 0, 0, 0, 0, 0, 0]);
-        assert_eq!(cl, [0, 1, 0, 1, 0, 0, 1]);
         print_parenthesis(&op, &cl, &permutation);
 
 
