@@ -1,6 +1,7 @@
 use std::iter::from_fn;
 use std::ops::{AddAssign, SubAssign};
-use crate::graph::NodeIndex;
+use tracing::instrument;
+use crate::graph::{Graph, NodeIndex};
 use common::make_index;
 
 make_index!(pub(crate) PartIndex);
@@ -50,11 +51,53 @@ impl Partition {
         let position: Vec<_> = (0..size).map(NodePos::new).collect();
         let gen = Gen(0);
         let nodes: Vec<_> = (0..size).map(|i| Node { node: NodeIndex::new(i), label: i as u32, part: PartIndex::new(0) }).collect();
-        let mut parts = Vec::with_capacity(size);
+        let mut parts = Vec::with_capacity(size + 1);
         parts.push(PartInner { start: NodePos::new(0), len: size as _, gen });
         let removed = vec![];
         Self { position, nodes, parts, removed, gen }
     }
+
+    #[instrument(skip_all)]
+    #[allow(dead_code)]
+    pub(crate) fn from_connected_components(graph: &Graph) -> Self {
+        let gen = Gen(0);
+
+        let mut position = vec![NodePos::invalid(); graph.node_count()];
+        let mut nodes = Vec::with_capacity(graph.node_count());
+        let mut parts = Vec::with_capacity(graph.node_count() + 8);
+        let mut i = 0;
+        let mut stack = vec![];
+        loop {
+            let Some(pos) = position[i..].iter().position(|p| !p.is_valid()) else { break; };
+            i += pos;
+            assert!(!position[i].is_valid());
+            let root = NodeIndex::new(i);
+            let start = nodes.len();
+            let part = PartIndex::new(parts.len());
+
+            let mut add_to_stack = |stack: &mut Vec<NodeIndex>, u: NodeIndex| {
+                if !position[u.index()].is_valid() {
+                    position[u.index()] = NodePos::new(nodes.len());
+                    let label = nodes.len() as u32;
+                    nodes.push(Node { node: u, label, part });
+                    stack.push(u);
+                }
+            };
+
+            add_to_stack(&mut stack, root);
+            while let Some(u) = stack.pop() {
+                for (v, _) in graph.incident_edges(u) {
+                    add_to_stack(&mut stack, v);
+                }
+            }
+            let end = nodes.len();
+            parts.push(PartInner { start: NodePos::new(start), len: (end - start) as u32, gen });
+        }
+
+        let removed = vec![];
+        Self { position, nodes, parts, removed, gen }
+    }
+
     fn new_part(&mut self, start: NodePos, len: u32) -> PartIndex {
         if let Some(part) = self.removed.pop() {
             self.parts[part.index()] = PartInner { start, len, gen: self.gen };

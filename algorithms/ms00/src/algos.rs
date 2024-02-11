@@ -27,10 +27,10 @@ pub(crate) fn modular_decomposition(graph: &mut Graph) -> Vec<TreeNode> {
     let mut tree = Tree::with_capacity(2 * graph.node_count());
     let root = tree.new_node(Kind::default());
 
+    let mut crossing_edges = vec![];
+    let mut map = vec![NodeIndex::invalid(); graph.node_count() + 1];
     let mut partition = Partition::new(graph.node_count());
 
-    let mut crossing_edges = vec![];
-    let mut map = vec![NodeIndex::new(0); graph.node_count()];
     let mut stack = vec![(Part::new(&partition), root)];
 
     while let Some((X, X_idx)) = stack.pop() {
@@ -47,18 +47,18 @@ pub(crate) fn modular_decomposition(graph: &mut Graph) -> Vec<TreeNode> {
         // let v = p.nodes_raw(partition).iter().min_by_key(|n| n.label).unwrap().node;
 
         // P(G[X], v) = OVP(G[X], [{v}, X - {v}])
-        let p = X.separate_single_vertex(&mut partition, v);
+        let X = X.separate_single_vertex(&mut partition, v);
         crossing_edges.clear();
-        ovp(graph, p, &mut partition, |e| { crossing_edges.extend(e.iter().map(|&(u, v, _)| (u, v))) });
+        ovp(graph, X, &mut partition, |e| { crossing_edges.extend(e.iter().map(|&(u, v, _)| (u, v))) });
 
         // case |P(G[X], v)| = 2
-        if let Some(ys) = try_trivial_quotient(&crossing_edges, p, &partition, X_idx, &mut tree) {
+        if let Some(ys) = try_trivial_quotient(&crossing_edges, X, &partition, X_idx, &mut tree) {
             stack.push(ys);
             continue;
         }
 
         // G[X] / P(G[X], v)
-        let (mut quotient, v_q, mut ys) = build_quotient(&mut crossing_edges, p, &partition, v, &mut map);
+        let (mut quotient, v_q, mut ys) = build_quotient(&mut crossing_edges, X, &partition, v, &mut map);
 
         // MD(G[X] / P(G[X], v))
         chain(&mut quotient, v_q, &mut tree, X_idx);
@@ -292,28 +292,38 @@ mod utils {
 
     #[allow(non_snake_case)]
     pub(crate) fn build_quotient(crossing_edges: &mut Vec<(NodeIndex, NodeIndex)>,
-                                 p: SubPartition, partition: &Partition,
-                                 inner_vertex: NodeIndex, map: &mut [NodeIndex])
+                                 X: SubPartition, partition: &Partition,
+                                 inner_vertex: NodeIndex, map: &mut Vec<NodeIndex>)
                                  -> (Graph, NodeIndex, Vec<(Part, TreeNodeIndex)>) {
+        // Let n be the number of vertices of the current subgraph, m be the number of crossing edges
+        // and k the number of parts.
+        // The mapping of the endpoints of the crossing edges from V to 1,...,k is done by computing
+        // the map Y_1,...,Y_k -> 1,...,k and using the partition for V -> Y_1,...,Y_k.
+        // This approach takes O(k + m) time.
+        // A previous approach built a map V -> 1,...,k directly, which takes O(n + m) time. This
+        // was fine most of the times, but was inefficient for the input of the disjunct union of
+        // many paths of length 3. We would repeatedly encounter the partition {Y_1, Y_2, Y_3} with
+        // sizes 1, 2 and n - 3 respectively, resulting in a O(n^2) total running time. A remedy was
+        // to preprocess the input to cover connected components independently.
+
         // map parts Y_1,...,Y_k to indices 1,...,k
-        let ys: Vec<_> = p.part_indices(partition)
+        map.resize(partition.part_index_upper_bound().index(), NodeIndex::invalid());
+        let ys: Vec<_> = X.part_indices(partition)
             .enumerate()
             .map(|(node_idx, Y_idx)| {
-                let Y = partition.part_by_index(Y_idx);
-                let node_idx = node_idx.into();
-                for u in Y.nodes(partition) {
-                    map[u.index()] = node_idx;
-                }
+                map[Y_idx.index()] = node_idx.into();
                 (partition.part_by_index(Y_idx), TreeNodeIndex::invalid())
             }).collect();
 
+        let map = |u: NodeIndex| -> NodeIndex { map[partition.part_by_node(u).index()] };
+
         for (u, v) in crossing_edges.iter_mut() {
-            *u = map[u.index()];
-            *v = map[v.index()];
+            *u = map(*u);
+            *v = map(*v);
         }
         crossing_edges.sort_unstable();
         crossing_edges.dedup();
-        (Graph::from_edges(ys.len(), crossing_edges.iter().copied()), map[inner_vertex.index()], ys)
+        (Graph::from_edges(ys.len(), crossing_edges.iter().copied()), map(inner_vertex), ys)
     }
 
     /// Check if the nodes of the part represent a series or parallel module and return its kind if
