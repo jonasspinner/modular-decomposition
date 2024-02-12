@@ -301,7 +301,7 @@ mod utils {
         // the map Y_1,...,Y_k -> 1,...,k and using the partition for V -> Y_1,...,Y_k.
         // This approach takes O(k + m) time.
         // A previous approach built a map V -> 1,...,k directly, which takes O(n + m) time. This
-        // was fine most of the times, but was inefficient for the input of the disjunct union of
+        // was fine most of the times, but was inefficient for the input of the disjoint union of
         // many paths of length 3. We would repeatedly encounter the partition {Y_1, Y_2, Y_3} with
         // sizes 1, 2 and n - 3 respectively, resulting in a O(n^2) total running time. A remedy was
         // to preprocess the input to cover connected components independently.
