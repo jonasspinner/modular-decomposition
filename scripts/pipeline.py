@@ -110,6 +110,17 @@ run.add("generate_gnm-log-m=20",
         },
         creates_file="[[output]]")
 
+run.add("generate_gnm-n=m",
+        "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
+        {
+            "n": list(reversed(range(2 ** 16, 2 ** 22 + 1, 2 ** 16))),
+            "m": "$((8 * [[n]]))",
+            "seed": 0,
+            "name": "gnm-n=m_n=[[n]]-m=[[m]]-seed=[[seed]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
 
 def add_generate_cograph_uni_deg(k, n, a: int, b: int):
     run.add(f"generate_cograph-uni-deg_{k}",
