@@ -110,13 +110,13 @@ run.add("generate_gnm-log-m=20",
         },
         creates_file="[[output]]")
 
-run.add("generate_gnm-n=m",
+run.add("generate_gnm-m=8n",
         "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
         {
-            "n": list(reversed(range(2 ** 16, 2 ** 22 + 1, 2 ** 16))),
+            "n": list(reversed(range(2 ** 14, 2 ** 20 + 1, 2 ** 14))),
             "m": "$((8 * [[n]]))",
             "seed": 0,
-            "name": "gnm-n=m_n=[[n]]-m=[[m]]-seed=[[seed]]",
+            "name": "gnm-m=8n_n=[[n]]-m=[[m]]-seed=[[seed]]",
             "output": "data/02-graphs/[[name]]"
         },
         creates_file="[[output]]")
