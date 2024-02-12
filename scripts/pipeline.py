@@ -77,10 +77,10 @@ run.add("convert_real_names",
 
 run.group("generate")
 
-run.add("generate_gnm",
+run.add("generate_gnm-log-n=14",
         "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
         {
-            "n": [2 ** 14],
+            "n": 2 ** 14,
             "m": list(range(0, 2 ** 16 + 1, 2 ** 12)),
             "seed": list(range(10)),
             "name": "gnm_n=[[n]]-m=[[m]]-seed=[[seed]]",
@@ -88,13 +88,24 @@ run.add("generate_gnm",
         },
         creates_file="[[output]]")
 
-run.add("generate_gnm_18",
+run.add("generate_gnm-log-n=18",
         "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
         {
-            "n": [2 ** 18],
+            "n": 2 ** 18,
             "m": list(reversed(range(0, 2 ** 24 + 1, 2 ** 18))),
-            "seed": list(range(1)),
+            "seed": 0,
             "name": "gnm_n=[[n]]-m=[[m]]-seed=[[seed]]",
+            "output": "data/02-graphs/[[name]]"
+        },
+        creates_file="[[output]]")
+
+run.add("generate_gnm-log-m=20",
+        "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
+        {
+            "n": list(reversed(range(2 ** 16, 2 ** 22 + 1, 2 ** 16))),
+            "m": 2 ** 20,
+            "seed": 0,
+            "name": "gnm-fixed-m_n=[[n]]-m=[[m]]-seed=[[seed]]",
             "output": "data/02-graphs/[[name]]"
         },
         creates_file="[[output]]")
