@@ -81,7 +81,7 @@ run.add("generate_gnm-log-n=14",
         "python3 scripts/generate.py gnm [[n]] [[m]] --seed [[seed]] --output [[output]]",
         {
             "n": 2 ** 14,
-            "m": list(range(0, 2 ** 16 + 1, 2 ** 12)),
+            "m": list(range(0, 2 ** 17 + 1, 2 ** 12)),
             "seed": list(range(10)),
             "name": "gnm_n=[[n]]-m=[[m]]-seed=[[seed]]",
             "output": "data/02-graphs/[[name]]"
@@ -122,7 +122,7 @@ run.add("generate_gnm-m=8n",
         creates_file="[[output]]")
 
 
-def add_generate_cograph_uni_deg(k, n, a: int, b: int):
+def add_generate_cograph_uni_deg(k, n, a: int, b: int, num_repeats=10):
     run.add(f"generate_cograph-uni-deg_{k}",
             "python3 scripts/generate.py cograph-uni-deg "
             "[[n]] --a [[a]] --b [[b]] --root-kind=[[root_kind]] --seed [[seed]] --output [[output]]",
@@ -131,14 +131,19 @@ def add_generate_cograph_uni_deg(k, n, a: int, b: int):
                 "a": a,
                 "b": b,
                 "root_kind": ["series", "parallel"],
-                "seed": list(range(10)),
+                "seed": list(range(num_repeats)),
                 "name": "cograph-uni-deg_n=[[n]]-a=[[a]]-b=[[b]]-r=[[root_kind]]-seed=[[seed]]",
                 "output": "data/02-graphs/[[name]]"
             },
             creates_file="[[output]]")
 
 
-add_generate_cograph_uni_deg(1, [2 ** 8, 2 ** 10, 2 ** 12], 2, 8)
+add_generate_cograph_uni_deg(1, [
+    2 ** 8, 3 * 2 ** 7,
+    2 ** 9, 3 * 2 ** 8,
+    2 ** 10, 3 * 2 ** 9,
+    2 ** 11, 3 * 2 ** 10,
+    2 ** 12], 2, 8, num_repeats=10)
 
 add_generate_cograph_uni_deg(2, [2 ** 8, 2 ** 10, 2 ** 12], 256, 256)
 
