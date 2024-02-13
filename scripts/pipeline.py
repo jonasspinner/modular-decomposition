@@ -23,6 +23,7 @@ run.group("download")
 
 run.add("download_pace2023", "bash scripts/data/download_pace2023.sh", {})
 run.add("download_girg_deg_scaling", "bash scripts/data/download_girg_deg_scaling.sh", {})
+run.add("download_girg", "bash scripts/data/download_girg.sh", {})
 run.add("download_real", "bash scripts/data/download_real.sh", {})
 
 #
@@ -56,6 +57,18 @@ run.add("convert_girg_deg_scaling",
             "name": girg_deg_scaling_names,
             "input": "data/01-raw/girg_deg_scaling/edge_lists_girg_deg_scaling/girg_deg_scaling_[[name]]",
             "output": "data/02-graphs/girg-deg-scaling_[[name]]"
+        },
+        creates_file="[[output]]")
+
+girg_names = [path.name[5:] for path in Path("data/01-raw/girg/edge_lists_girg").glob("girg_*")]
+run.add("convert_girg",
+        "cargo run --bin convert --release -- "
+        "--input-type edge-list --output-type metis "
+        "--input [[input]] --output [[output]]",
+        {
+            "name": girg_names,
+            "input": "data/01-raw/girg/edge_lists_girg/girg_[[name]]",
+            "output": "data/02-graphs/girg_[[name]]"
         },
         creates_file="[[output]]")
 
