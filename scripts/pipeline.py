@@ -27,10 +27,10 @@ run.add("download_girg", "bash scripts/data/download_girg.sh", {})
 run.add("download_real", "bash scripts/data/download_real.sh", {})
 
 #
-# preprocessing
+# convert
 #
 
-run.group("preprocessing")
+run.group("convert")
 
 pace2023_exact_names = [f"exact_{i:03}" for i in range(1, 201)]
 pace2023_heuristic_names = [f"heuristic_{i:03}" for i in range(1, 201)]
@@ -231,7 +231,7 @@ run.add("plot_graphs",
 run.group("graph_stats")
 
 names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
-run.add(f"analyze_graphs",
+run.add(f"graph_stats",
         "python3 scripts/analyze.py graph --input [[input]] --output [[output]]",
         {
             "name": names,
@@ -272,7 +272,7 @@ run.add("md",
 run.group("md_tree_stats")
 
 names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
-run.add(f"analyze_md_trees",
+run.add(f"md_tree_stats",
         "python3 scripts/analyze.py tree --input [[input]] --output [[output]]",
         {
             "name": names,
