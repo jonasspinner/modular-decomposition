@@ -156,7 +156,8 @@ add_generate_cograph_uni_deg(1, [
     2 ** 9, 3 * 2 ** 8,
     2 ** 10, 3 * 2 ** 9,
     2 ** 11, 3 * 2 ** 10,
-    2 ** 12], 2, 8, num_repeats=10)
+    2 ** 12, 3 * 2 ** 11,
+    2 ** 13], 2, 8, num_repeats=10)
 
 add_generate_cograph_uni_deg(2, [2 ** 8, 2 ** 10, 2 ** 12], 256, 256)
 
