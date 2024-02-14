@@ -294,10 +294,10 @@ run.add(f"check",
         "cargo run --bin check_trees --release -- [[a]] [[b]] [[c]] [[d]]",
         {
             "name": names,
-            "a": "data/05-md-tress/miz23-cpp/[[name]].md",
-            "b": "data/05-md-tress/miz23-rust/[[name]].md",
-            "c": "data/05-md-tress/ms00/[[name]].md",
-            "d": "data/05-md-tress/kar19-rust/[[name]].md",
+            "a": "data/05-md-trees/miz23-cpp/[[name]].md",
+            "b": "data/05-md-trees/miz23-rust/[[name]].md",
+            "c": "data/05-md-trees/ms00/[[name]].md",
+            "d": "data/05-md-trees/kar19-rust/[[name]].md",
         })
 
 #
