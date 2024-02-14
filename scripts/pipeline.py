@@ -14,6 +14,7 @@ run.group("build")
 
 run.add("build_md", "cargo build --bin md --release", {})
 run.add("build_convert", "cargo build --bin convert --release", {})
+run.add("build_check_trees", "cargo build --bin check_trees --release", {})
 
 #
 # download
@@ -281,6 +282,23 @@ run.add(f"md_tree_stats",
             "output": "data/06-md-tree-stats/[[name]].md.stats"
         },
         creates_file="[[output]]")
+
+#
+# check
+#
+
+run.group("check")
+
+names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
+run.add(f"check",
+        "cargo run --bin check_trees --release -- [[a]] [[b]] [[c]] [[d]]",
+        {
+            "name": names,
+            "a": "data/05-md-tress/miz23-cpp/[[name]].md",
+            "b": "data/05-md-tress/miz23-rust/[[name]].md",
+            "c": "data/05-md-tress/ms00/[[name]].md",
+            "d": "data/05-md-tress/kar19-rust/[[name]].md",
+        })
 
 #
 # compress
