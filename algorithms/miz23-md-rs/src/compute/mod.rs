@@ -214,11 +214,10 @@ mod implementation {
             t += 1;
             trace!("main problem ({}): {}", t, tree.to_string(Some(tree.get_root(current_problem))));
             trace!("current problem: {}", tree.to_string(Some(current_problem)));
-            #[allow(unused)]
-            for i in 0..n {
+            //for i in 0..n {
                 trace!("visited [{}]: {:?}", i, visited[i]);
                 trace!("alpha [{}]: {:?}", i, alpha_list[i].iter().map(|n| n.idx()).collect::<Vec<_>>());
-            }
+            //}
 
             tree[current_problem].data.active = true;
             let child = tree[current_problem].first_child.unwrap();
