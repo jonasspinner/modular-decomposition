@@ -1,7 +1,6 @@
 use std::collections::{HashSet, VecDeque};
 use std::fmt::Debug;
 use std::iter::FusedIterator;
-use std::marker::PhantomData;
 use std::ops::Index;
 
 pub(crate) struct Forest<Data> {
@@ -17,6 +16,7 @@ impl<Data> Default for Forest<Data> {
 }
 
 impl<Data> Forest<Data> {
+    #[cfg(test)]
     pub fn new() -> Self {
         Default::default()
     }
@@ -84,56 +84,50 @@ impl<Data> std::ops::IndexMut<NodeIdx> for Forest<Data> {
     fn index_mut(&mut self, index: NodeIdx) -> &mut Self::Output { &mut self.nodes[index.idx()] }
 }
 
-#[allow(unused)]
-pub(crate) struct ChildrenWalker<Data> {
+pub(crate) struct ChildrenWalker {
     next: Option<NodeIdx>,
-    _data: PhantomData<Data>,
+    size: u32,
 }
 
-#[allow(unused)]
-impl<Data> ChildrenWalker<Data> {
-    pub(crate) fn new(forest: &Forest<Data>, index: NodeIdx) -> Self {
+impl ChildrenWalker {
+    pub(crate) fn new<Data>(forest: &Forest<Data>, index: NodeIdx) -> Self {
         let next = forest[index].first_child;
-        ChildrenWalker { next, _data: PhantomData }
+        let size = forest[index].num_children;
+        ChildrenWalker { next, size }
     }
-    fn next(&mut self, forest: &Forest<Data>) -> Option<NodeIdx> {
-        if let Some(current) = self.next {
-            self.next = forest[current].right;
-            Some(current)
-        } else {
-            None
+    fn next<Data>(&mut self, forest: &Forest<Data>) -> Option<NodeIdx> {
+        if self.size > 0 {
+            self.size -= 1;
+            if let Some(current) = self.next {
+                self.next = forest[current].right;
+                return Some(current);
+            }
         }
+        None
     }
+
+    fn size(&self) -> usize { self.size as usize }
 }
 
 pub(crate) struct ChildrenIter<'a, Data> {
     forest: &'a Forest<Data>,
-    current: Option<NodeIdx>,
-    num_left: u32,
+    walker: ChildrenWalker,
 }
 
 impl<'a, Data> ChildrenIter<'a, Data> {
     fn new(forest: &'a Forest<Data>, index: NodeIdx) -> Self {
-        let Node { first_child: current, num_children: num_left, .. } = forest[index];
-        ChildrenIter { forest, current, num_left }
+        let walker = ChildrenWalker::new(forest, index);
+        ChildrenIter { forest, walker }
     }
 }
 
 impl<Data> Iterator for ChildrenIter<'_, Data> {
     type Item = NodeIdx;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(current) = self.current {
-            self.current = self.forest[current].right;
-            self.num_left -= 1;
-            Some(current)
-        } else {
-            None
-        }
-    }
+    fn next(&mut self) -> Option<Self::Item> { self.walker.next(self.forest) }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let size = self.num_left as usize;
+        let size = self.walker.size();
         (size, Some(size))
     }
 }
@@ -191,7 +185,6 @@ pub(crate) struct PreOrderNodeIdxWalker {
 }
 
 impl PreOrderNodeIdxWalker {
-    #[allow(dead_code)]
     fn new(index: NodeIdx) -> Self {
         PreOrderNodeIdxWalker { start: index, next: Some(index) }
     }
@@ -232,9 +225,9 @@ pub(crate) struct PreOrderNodeIdxIter<'a, Data> {
 }
 
 impl<'a, Data> PreOrderNodeIdxIter<'a, Data> {
-    #[allow(dead_code)]
     fn new(forest: &'a Forest<Data>, index: NodeIdx) -> Self {
-        PreOrderNodeIdxIter { forest, walker: PreOrderNodeIdxWalker::new(index) }
+        let walker = PreOrderNodeIdxWalker::new(index);
+        PreOrderNodeIdxIter { forest, walker }
     }
 }
 
@@ -250,7 +243,6 @@ impl<Data> FusedIterator for PreOrderNodeIdxIter<'_, Data> {}
 
 
 impl<Data> Forest<Data> {
-    #[allow(dead_code)]
     pub fn pre_order_node_indices(&self, index: NodeIdx) -> PreOrderNodeIdxIter<Data> {
         PreOrderNodeIdxIter::new(self, index)
     }
@@ -320,7 +312,7 @@ impl<Data> Forest<Data> {
 
 
 impl<Data> Forest<Data> {
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn roots(&self) -> impl Iterator<Item=NodeIdx> + '_ {
         self.nodes.iter()
             .enumerate()
@@ -563,7 +555,7 @@ impl<Data> Forest<Data> {
         self.move_to(target, index);
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn check_consistency(&self) -> Result<(), String> {
         let mut num_alive = 0;
         for index in (0..self.capacity()).map(|i| NodeIdx(i as u32)) {

@@ -102,6 +102,7 @@ impl MDComputeNode {
 }
 
 impl MDComputeNode {
+    #[allow(unused)]
     pub(crate) fn is_vertex_node(&self) -> bool { self.node_type == NodeType::Vertex }
     fn is_operation_node(&self) -> bool { self.node_type == NodeType::Operation }
     pub(crate) fn is_problem_node(&self) -> bool { self.node_type == NodeType::Problem }

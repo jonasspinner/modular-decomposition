@@ -72,7 +72,6 @@ pub(crate) struct EdgeIter<'a> {
 }
 
 impl<'a> EdgeIter<'a> {
-    #[allow(dead_code)]
     fn new(graph: &'a Graph) -> Self {
         EdgeIter { graph, u: VertexId(0), v_idx: 0 }
     }

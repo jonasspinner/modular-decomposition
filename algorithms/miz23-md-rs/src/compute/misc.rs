@@ -40,8 +40,7 @@ pub(crate) fn remove_layers(tree: &mut Forest<MDComputeNode>, prob: NodeIdx) {
     trace!("finish: {}", tree.to_string(Some(prob)));
 }
 
-#[allow(unused)]
-pub(crate) fn complete_alpha_lists(tree: &Forest<MDComputeNode>, alpha_list: &mut [Vec<NodeIdx>], vset: &mut FastSet, prob: NodeIdx, leaves: &[NodeIdx]) {
+pub(crate) fn complete_alpha_lists(_tree: &Forest<MDComputeNode>, alpha_list: &mut [Vec<NodeIdx>], vset: &mut FastSet, _prob: NodeIdx, leaves: &[NodeIdx]) {
     trace!("start: {}", tree.to_string(Some(prob)));
 
     for &v in leaves {
