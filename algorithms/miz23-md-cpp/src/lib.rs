@@ -1,6 +1,7 @@
 use std::ffi::c_int;
 use std::iter::zip;
 use std::ptr::null_mut;
+use std::time::Duration;
 use miz23_md_cpp_sys::ffi;
 use petgraph::{Graph, Undirected};
 use petgraph::graph::{DiGraph, UnGraph};
@@ -76,6 +77,10 @@ impl Prepared {
 }
 
 impl Computed {
+    pub fn get_internal_time(&self) -> Duration {
+        let time = unsafe { ffi::miz23_result_time(self.result) };
+        Duration::from_secs_f64(time.into())
+    }
     pub fn finalize(&self) -> DiGraph<MDNodeKind, ()> {
         let num_nodes = unsafe { ffi::miz23_result_size(self.result) } as usize;
         let mut nodes = vec![ffi::Node::default(); num_nodes];
