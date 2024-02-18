@@ -82,3 +82,54 @@ fn main() {
 
     println!("{:?}", Dot::with_config(&graph, &[Config::NodeIndexLabel, Config::EdgeNoLabel]));
 }
+
+
+mod test {
+    #[test]
+    fn test() {
+        struct PartitioningIterator<'a, T, P> {
+            elements: &'a mut [T],
+            end: &'a mut usize,
+            i: usize,
+            j: usize,
+            predicate: P,
+        }
+        impl<'a, T, P> PartitioningIterator<'a, T, P> {
+            fn new(elements: &'a mut [T], end: &'a mut usize, predicate: P) -> Self {
+                Self { elements, end, i: 0, j: 0, predicate }
+            }
+        }
+        impl<'a, T, P> Iterator for PartitioningIterator<'a, T, P>
+            where P: FnMut(&T) -> bool
+        {
+            type Item = &'a T;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                todo!()
+            }
+        }
+
+        fn partition_in_place<T, P>(elements: &mut [T], mut predicate: P) -> usize
+            where P: FnMut(&T) -> bool {
+            let mut j = 0;
+            for i in 0..elements.len() {
+                if predicate(&elements[i]) {
+                    elements.swap(i, j);
+                    j += 1;
+                }
+            }
+            j
+        }
+
+        let mut v = [0, 1, 2, 3, 4];
+        let mut end = v.len();
+
+        println!("{:?}", &v[..end]);
+        end = partition_in_place(&mut v[..end], |x| { *x % 2 == 0 });
+        println!("{:?}", &v[..end]);
+        end = partition_in_place(&mut v[..end], |x| { *x >= 2 });
+        println!("{:?}", &v[..end]);
+        end = partition_in_place(&mut v[..end], |x| { *x <= 2 });
+        println!("{:?}", &v[..end]);
+    }
+}

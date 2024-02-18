@@ -68,25 +68,25 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (t, md) = match cli.algo {
         Algo::Miz23Rust => {
-            let problem = miz23_md_rs::prepare(&graph);
+            let problem = linear::prepare(&graph);
             let start = Instant::now();
             let result = problem.compute();
             (start.elapsed(), result.finalize())
         }
         Algo::Miz23Cpp => {
-            let problem = miz23_md_cpp::prepare(&graph);
+            let problem = linear_ref::prepare(&graph);
             let start = Instant::now();
             let result = problem.compute();
             (start.elapsed(), result.finalize())
         }
         Algo::MS00 => {
-            let problem = ms00::prepare(&graph);
+            let problem = skeleton::prepare(&graph);
             let start = Instant::now();
             let result = problem.compute();
             (start.elapsed(), result.finalize())
         }
         Algo::Kar19Rust => {
-            let problem = kar19_rs::prepare(&graph);
+            let problem = fracture::prepare(&graph);
             let start = Instant::now();
             let result = problem.compute();
             (start.elapsed(), result.finalize())

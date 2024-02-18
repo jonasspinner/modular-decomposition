@@ -132,13 +132,4 @@ mod test {
         assert_eq!(md.node_count(), 0);
         assert_eq!(md.edge_count(), 0);
     }
-
-    #[test]
-    fn exact_053() {
-        let path = Path::new("../../hippodrome/instances/pace2023/exact_053.gr");
-        let graph = common::io::read_pace2023(path).unwrap();
-        let md = modular_decomposition(&graph);
-
-        println!("{:?}", Dot::with_config(&md, &[Config::EdgeNoLabel]));
-    }
 }

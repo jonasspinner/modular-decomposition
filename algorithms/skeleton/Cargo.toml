@@ -1,5 +1,5 @@
 [package]
-name = "kar19-rs"
+name = "skeleton"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 common = { path = "../../common" }
-playground = { path = "../../playground" }
 petgraph.workspace = true
+rand = "0.8.5"
 tracing.workspace = true

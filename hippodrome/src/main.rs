@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::ffi::OsStr;
 use std::fs;
 use std::os::unix::fs::MetadataExt;
@@ -6,32 +7,33 @@ use canonicalize::canonicalize;
 
 pub(crate) mod canonicalize;
 
-fn main() {
-    let mut paths: Vec<_> = fs::read_dir("data/02-graphs").unwrap().map(|p| p.unwrap().path()).filter(|p| p.is_file()).collect();
+fn main() -> Result<(), Box<dyn Error>> {
+    let mut paths: Vec<_> = fs::read_dir("data/02-graphs")?.map(|p| p.unwrap().path()).filter(|p| p.is_file()).collect();
     paths.sort_by_key(|p| p.metadata().unwrap().size());
 
     for (i, path) in paths.iter().enumerate() {
-        let graph = common::io::read_metis(path).unwrap();
+        let graph = common::io::read_metis(path)?;
 
-        let problem = miz23_md_rs::prepare(&graph);
+        let problem = linear::prepare(&graph);
         let start = Instant::now();
         let result = problem.compute();
         let t0 = start.elapsed();
         let md0 = result.finalize();
 
-        let problem = miz23_md_cpp::prepare(&graph);
+        let problem = linear_ref::prepare(&graph);
         let start = Instant::now();
         let result = problem.compute();
         let t1 = start.elapsed();
+        let t1_internal = result.get_internal_time();
         let md1 = result.finalize();
 
-        let problem = ms00::prepare(&graph);
+        let problem = skeleton::prepare(&graph);
         let start = Instant::now();
         let result = problem.compute();
         let t2 = start.elapsed();
         let md2 = result.finalize();
 
-        let problem = kar19_rs::prepare(&graph);
+        let problem = fracture::prepare(&graph);
         let start = Instant::now();
         let result = problem.compute();
         let t3 = start.elapsed();
@@ -46,18 +48,20 @@ fn main() {
         assert_eq!(md1, md2);
         assert_eq!(md2, md3);
 
-        let fastest_time = *[t0, t1, t2, t3]
+        let fastest_time = *[t0, t1, t1_internal, t2, t3]
             .map(|t| t.as_nanos())
             .iter().min().unwrap() as f64;
 
-        println!("{i:4.} {:<30.30} miz23-rust {:9} μs {:6.2}  miz23-cpp {:9} μs {:6.2}  ms00 {:9} μs {:6.2}  kar19-rust {:9} μs {:6.2}",
+        println!("{i:4.} {:<30.30} linear {:9} μs {:6.2}  linear-ref {:9} μs {:6.2} [{:6.2}]  skeleton {:9} μs {:6.2}  fracture {:9} μs {:6.2}",
                  path.file_name().and_then(OsStr::to_str).unwrap(),
                  t0.as_micros(), (t0.as_nanos() as f64 / fastest_time),
                  t1.as_micros(), (t1.as_nanos() as f64 / fastest_time),
+                 (t1.as_nanos() as f64) / (t1_internal.as_nanos() as f64),
                  t2.as_micros(), (t2.as_nanos() as f64 / fastest_time),
                  t3.as_micros(), (t3.as_nanos() as f64 / fastest_time),
         );
     }
+    Ok(())
 }
 
 
@@ -123,8 +127,8 @@ mod test {
 
         println!("{:?}", Dot::with_config(&graph, &[Config::EdgeNoLabel]));
 
-        let md0 = miz23_md_rs::modular_decomposition(&graph);
-        let md1 = ms00::modular_decomposition(&graph);
+        let md0 = linear::modular_decomposition(&graph);
+        let md1 = skeleton::modular_decomposition(&graph);
 
         println!("{:?}", Dot::with_config(&md0, &[Config::EdgeNoLabel]));
         println!("{:?}", Dot::with_config(&md1, &[Config::EdgeNoLabel]));
@@ -230,8 +234,8 @@ mod test {
 
         //println!("{:?}", Dot::with_config(&graph, &[Config::EdgeNoLabel]));
 
-        let md0 = miz23_md_rs::modular_decomposition(&graph);
-        let md1 = kar19_rs::modular_decomposition(&graph);
+        let md0 = linear::modular_decomposition(&graph);
+        let md1 = fracture::modular_decomposition(&graph);
 
         let mut md0_edges: Vec<_> = md0.edge_references().map(|e| (e.source(), e.target())).collect();
         md0_edges.sort();
@@ -258,8 +262,8 @@ mod test {
     fn pace2023_heuristic_010() {
         let graph = common::io::read_metis("../data/02-graphs/pace2023-heuristic_010").unwrap();
 
-        let md0 = miz23_md_rs::modular_decomposition(&graph);
-        let md1 = kar19_rs::modular_decomposition(&graph);
+        let md0 = linear::modular_decomposition(&graph);
+        let md1 = fracture::modular_decomposition(&graph);
 
         assert_eq!(canonicalize(&md0), canonicalize(&md1));
     }
@@ -268,15 +272,8 @@ mod test {
     fn pace2023_heuristic_022() {
         let graph = common::io::read_metis("../data/02-graphs/pace2023-heuristic_022").unwrap();
 
-        let md0 = miz23_md_rs::modular_decomposition(&graph);
-        let md1 = kar19_rs::modular_decomposition(&graph);
-
-
-        //println!("{:?}", Dot::with_config(&md0, &[Config::EdgeNoLabel]));
-        //println!("{:?}", Dot::with_config(&md1, &[Config::EdgeNoLabel]));
-
-        //println!("{:?}", canonicalize(&md0));
-        //println!("{:?}", canonicalize(&md1));
+        let md0 = linear::modular_decomposition(&graph);
+        let md1 = fracture::modular_decomposition(&graph);
 
         assert_eq!(canonicalize(&md0), canonicalize(&md1));
     }

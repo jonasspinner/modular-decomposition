@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 common = { path = "../common" }
-miz23-md-cpp = { path = "../algorithms/miz23-md-cpp" }
+linear = { path = "../algorithms/linear" }
 petgraph.workspace = true

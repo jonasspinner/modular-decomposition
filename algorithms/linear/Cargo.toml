@@ -1,5 +1,5 @@
 [package]
-name = "ms00"
+name = "linear"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,5 +8,3 @@ edition = "2021"
 [dependencies]
 common = { path = "../../common" }
 petgraph.workspace = true
-rand = "0.8.5"
-tracing.workspace = true

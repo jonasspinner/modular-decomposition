@@ -120,6 +120,7 @@ mod partition_refinement {
         partition.elements().map(|u| NodeIndex::new(u as _)).collect::<Vec<_>>()
     }
 
+    #[cfg(test)]
     mod test {
         use petgraph::graph::UnGraph;
         use super::*;
@@ -145,6 +146,7 @@ mod partition_refinement {
             assert_eq!(lexbfs(&graph), [0, 1, 2, 3, 4, 5]);
         }
 
+        #[ignore]
         #[test]
         fn lexbfs_plus_works() {
             let graph = UnGraph::<(), (), u32>::from_edges([

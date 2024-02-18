@@ -2,7 +2,7 @@ use std::ffi::c_int;
 use std::iter::zip;
 use std::ptr::null_mut;
 use std::time::Duration;
-use miz23_md_cpp_sys::ffi;
+use miz23_sys::ffi;
 use petgraph::{Graph, Undirected};
 use petgraph::graph::{DiGraph, UnGraph};
 use petgraph::prelude::NodeIndex;

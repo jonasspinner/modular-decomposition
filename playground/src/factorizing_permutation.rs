@@ -560,12 +560,14 @@ pub mod kar19_checked_impl {
 
                     let [A, N] = [-1_isize, 1_isize]
                         .map(|diff| {
-                            let pos = NodePos::new(x_pos.index().wrapping_add_signed(diff));
-                            if X.contains(pos) {
-                                self.part(self.node(pos).part).seq
-                            } else {
-                                Seq::new(NodePos(0), 0)
+                            let pos = x_pos.index().wrapping_add_signed(diff);
+                            if pos < self._nodes.len() {
+                                let pos = NodePos::new(pos);
+                                if X.contains(pos) {
+                                    return self.part(self.node(pos).part).seq;
+                                }
                             }
+                            Seq::new(NodePos(0), 0)
                         });
 
                     let (S, L) = if A.len <= N.len { (A, N) } else { (N, A) };
