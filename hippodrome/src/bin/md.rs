@@ -13,10 +13,10 @@ use common::io::{GraphFileType, read_edgelist, read_metis, read_pace2023, write_
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, ValueEnum)]
 enum Algo {
-    Miz23Rust,
-    Miz23Cpp,
-    MS00,
-    Kar19Rust,
+    LinearRef,
+    Linear,
+    Skeleton,
+    Fracture,
 }
 
 #[derive(Debug, Parser)]
@@ -67,25 +67,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let (t, md) = match cli.algo {
-        Algo::Miz23Rust => {
+        Algo::Linear => {
             let problem = linear::prepare(&graph);
             let start = Instant::now();
             let result = problem.compute();
             (start.elapsed(), result.finalize())
         }
-        Algo::Miz23Cpp => {
+        Algo::LinearRef => {
             let problem = linear_ref::prepare(&graph);
             let start = Instant::now();
             let result = problem.compute();
             (start.elapsed(), result.finalize())
         }
-        Algo::MS00 => {
+        Algo::Skeleton => {
             let problem = skeleton::prepare(&graph);
             let start = Instant::now();
             let result = problem.compute();
             (start.elapsed(), result.finalize())
         }
-        Algo::Kar19Rust => {
+        Algo::Fracture => {
             let problem = fracture::prepare(&graph);
             let start = Instant::now();
             let result = problem.compute();

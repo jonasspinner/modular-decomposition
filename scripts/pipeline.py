@@ -5,6 +5,7 @@ import multiprocessing
 run.use_cores(min(8, multiprocessing.cpu_count()) - 1)
 
 Path("data/02-graphs").mkdir(exist_ok=True, parents=True)
+algos = ["linear-ref", "linear", "skeleton", "fracture"]
 
 #
 # build
@@ -249,7 +250,6 @@ run.add(f"graph_stats",
 run.group("experiments")
 
 names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: -path.stat().st_size)]
-algos = ["kar19-rust", "miz23-rust", "miz23-cpp", "ms00"]
 for algo in algos:
     (Path("data/04-algo-runs") / algo).mkdir(exist_ok=True, parents=True)
     (Path("data/05-md-trees") / algo).mkdir(exist_ok=True, parents=True)
@@ -278,7 +278,7 @@ run.add(f"md_tree_stats",
         "python3 scripts/analyze.py tree --input [[input]] --output [[output]]",
         {
             "name": names,
-            "input": "data/05-md-trees/miz23-rust/[[name]].md",
+            "input": f"data/05-md-trees/{algos[0]}/[[name]].md",
             "output": "data/06-md-tree-stats/[[name]].md.stats"
         },
         creates_file="[[output]]")
@@ -290,14 +290,12 @@ run.add(f"md_tree_stats",
 run.group("check")
 
 names = [path.name for path in sorted(Path(f"data/02-graphs").glob(f"*_*"), key=lambda path: path.stat().st_size)]
+arguments = dict([])
 run.add(f"check",
         "cargo run --bin check_trees --release -- [[a]] [[b]] [[c]] [[d]]",
         {
             "name": names,
-            "a": "data/05-md-trees/miz23-cpp/[[name]].md",
-            "b": "data/05-md-trees/miz23-rust/[[name]].md",
-            "c": "data/05-md-trees/ms00/[[name]].md",
-            "d": "data/05-md-trees/kar19-rust/[[name]].md",
+            **dict([(k, f"data/05-md-trees/{algo}/[[name]].md") for k, algo in zip("abcd", algos)])
         })
 
 #
