@@ -37,9 +37,7 @@ pub(crate) fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKi
 
     let s = build_tree(&op, &cl, &p);
 
-    let mut t = classify_nodes(&s, &neighbors);
-
-    delete_weak_modules(&mut t);
+    let t = classify_nodes(&s, &neighbors);
 
     convert_to_digraph(t)
 }
@@ -271,30 +269,6 @@ fn classify_nodes_rec(t: &Vec<NodeInProgress>, neighbors: &[HashSet<NodeIndex>])
         NodeInProgress::Vec(_, x) => { Node::Tree(classify_nodes_rec(x, neighbors)) }
     }).collect();
     StrongModuleTree { kind, nodes }
-}
-
-#[instrument(skip_all)]
-fn delete_weak_modules(t: &mut StrongModuleTree) {
-    delete_weak_modules_rec(t)
-}
-
-#[allow(unreachable_code)]
-fn delete_weak_modules_rec(t: &mut StrongModuleTree) {
-    let mut i = 0_usize.wrapping_sub(1);
-    while i.wrapping_add(1) < t.nodes.len() {
-        i = i.wrapping_add(1);
-        let x = &mut t.nodes[i];
-        let Node::Tree(x) = x else { continue; };
-        delete_weak_modules_rec(x);
-        if !(t.kind == x.kind && x.kind != Kind::Prime) { continue; }
-
-        // TODO: investigate
-        // panic!("This case does not seem to occur. Weird.");
-        let nodes = std::mem::take(&mut x.nodes);
-        let x_len = nodes.len();
-        t.nodes.splice(i..i, nodes);
-        i += x_len;
-    }
 }
 
 #[allow(dead_code)]
