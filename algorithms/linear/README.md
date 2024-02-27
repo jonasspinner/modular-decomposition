@@ -10,3 +10,6 @@ The port adds iterators for a pre-order traversal of the node indices of a subtr
 Additionally, there are methods that iterate over a subtree or its leaves and call a user provided callback for each
 node and provide mutable access. This avoids building a vector of node indices first, iterating over the indices and
 then dropping the vector.
+
+A related provisional [Java implementation](https://web.archive.org/web/20231117180242/http://www.cs.toronto.edu/~mtedder/)
+by the authors of the original paper was available until some point in 2023.
