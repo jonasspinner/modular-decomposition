@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
+use petgraph::data::{Element, FromElements};
 use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
 use common::modular_decomposition::MDNodeKind;
 use tracing::instrument;
@@ -7,7 +8,13 @@ use crate::trace;
 
 
 #[allow(dead_code)]
-pub(crate) fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKind, ()> {
+pub fn modular_decomposition(graph: &UnGraph<(), ()>) -> DiGraph<MDNodeKind, ()> {
+    let n = graph.node_count();
+    if n == 0 { return DiGraph::new(); }
+    if n == 1 {
+        return DiGraph::from_elements([Element::Node { weight: MDNodeKind::Vertex(0) }]);
+    }
+
     let p = factorizing_permutation(graph);
 
     let n = p.len();
