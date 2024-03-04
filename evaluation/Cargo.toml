@@ -1,5 +1,5 @@
 [package]
-name = "hippodrome"
+name = "evaluation"
 version = "0.1.0"
 edition = "2021"
 
@@ -15,10 +15,3 @@ clap.workspace = true
 petgraph.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-
-[dev-dependencies]
-criterion = { version = "0.4", features = ["html_reports"] }
-
-[[bench]]
-name = "benchmark"
-harness = false

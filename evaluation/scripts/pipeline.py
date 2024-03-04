@@ -14,7 +14,7 @@ algos = ["linear-ref", "linear", "skeleton", "fracture"]
 run.group("build")
 
 run.add("build_md", "cargo build --bin md --release", {})
-run.add("build_convert", "cargo build --bin convert --release", {})
+run.add("build_convert", "cargo build --package common --bin convert --release", {})
 run.add("build_check_trees", "cargo build --bin check_trees --release", {})
 
 #
@@ -37,7 +37,7 @@ run.group("convert")
 pace2023_exact_names = [f"exact_{i:03}" for i in range(1, 201)]
 pace2023_heuristic_names = [f"heuristic_{i:03}" for i in range(1, 201)]
 run.add("convert_pace2023",
-        "cargo run --bin convert --release -- "
+        "cargo run --package common --bin convert --release -- "
         "--input-type pace2023 --output-type metis "
         "--input [[input]] --output [[output]]",
         {
@@ -52,7 +52,7 @@ pace2023_heuristic_names = [f"pace2023-{name}" for name in pace2023_heuristic_na
 girg_deg_scaling_names = [path.name[17:] for path in
                           Path("data/01-raw/girg_deg_scaling/edge_lists_girg_deg_scaling").glob("girg_deg_scaling_*")]
 run.add("convert_girg_deg_scaling",
-        "cargo run --bin convert --release -- "
+        "cargo run --package common --bin convert --release -- "
         "--input-type edge-list --output-type metis "
         "--input [[input]] --output [[output]]",
         {
@@ -64,7 +64,7 @@ run.add("convert_girg_deg_scaling",
 
 girg_names = [path.name[5:] for path in Path("data/01-raw/girg/edge_lists_girg").glob("girg_*")]
 run.add("convert_girg",
-        "cargo run --bin convert --release -- "
+        "cargo run --package common --bin convert --release -- "
         "--input-type edge-list --output-type metis "
         "--input [[input]] --output [[output]]",
         {
@@ -76,7 +76,7 @@ run.add("convert_girg",
 
 real_names = [path.name for path in Path("data/01-raw/real/edge_lists_real").glob("*")]
 run.add("convert_real_names",
-        "cargo run --bin convert --release -- "
+        "cargo run --package common --bin convert --release -- "
         "--input-type edge-list --output-type metis "
         "--input [[input]] --output [[output]]",
         {

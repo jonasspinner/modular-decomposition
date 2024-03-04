@@ -626,6 +626,7 @@ pub mod kar19_checked_impl {
     #[cfg(test)]
     mod test {
         use petgraph::graph::UnGraph;
+        use common::instances;
         use common::io::read_pace2023;
         use super::factorizing_permutation;
 
@@ -675,9 +676,7 @@ pub mod kar19_checked_impl {
 
         #[test]
         fn exact_024() {
-            let graph =
-                read_pace2023("../data/01-raw/pace2023/exact_024.gr")
-                    .or_else(|_| read_pace2023("data/01-raw/pace2023/exact_024.gr")).unwrap();
+            let graph = instances::pace2023_exact_024();
             let p = factorizing_permutation(&graph);
             let p: Vec<_> = p.iter().map(|u| u.index()).collect();
             println!("{:?}", p);

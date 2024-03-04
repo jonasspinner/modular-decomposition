@@ -33,29 +33,6 @@ pub fn modular_decomposition<N, E>(graph: &Graph<N, E, Undirected>) -> DiGraph<M
 }
 ```
 
-## Running the algorithms
-
-Make test data available.
-```shell
-python3 scripts/pipeline.py download convert generate
-```
-
-Run experiments (needs the test data).
-```shell
-python3 scripts/pipeline.py md
-```
-
-Run all algorithms on all available data.
-```shell
-cargo run --bin hippodrome --release
-```
-
-Execute one of the algorithms on a single file.
-```shell
-cargo run --bin md --release -- --input-type metis --input <INPUT> --output <OUTPUT> --algo kar19-rust
-```
-
-
 ## References
 
 + [HPV99] Michel Habib, Christophe Paul, and Laurent Viennot. “Partition Refinement Techniques: An Interesting Algorithmic Tool Kit”. https://doi.org/10.1142/S0129054199000125.

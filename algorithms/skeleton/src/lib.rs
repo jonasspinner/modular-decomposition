@@ -86,7 +86,6 @@ pub fn modular_decomposition<N, E>(graph: &UnGraph<N, E>) -> DiGraph<MDNodeKind,
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
     use petgraph::dot::{Config, Dot};
     use petgraph::graph::{DiGraph, UnGraph};
     use petgraph::visit::IntoNodeReferences;

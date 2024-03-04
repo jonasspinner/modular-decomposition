@@ -5,13 +5,8 @@ members = [
     "algorithms/linear-ref",
     "algorithms/linear",
     "algorithms/miz23-sys",
-#    "algorithms/dgm01",
-#    "algorithms/jsc72",
-#    "algorithms/kar19-jl",
-#    "algorithms/lyt15-rs",
-    "algorithms/lyt15",
     "common",
-    "hippodrome",
+    "evaluation",
     "playground",
 ]
 resolver="2"
