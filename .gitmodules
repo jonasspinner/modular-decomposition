@@ -1,12 +1,3 @@
-[submodule "extern/miz23"]
-	path = extern/miz23
-	url = git@github.com:TheoryInPractice/hydraprime.git
-[submodule "extern/kar19"]
-	path = extern/kar19
-	url = git@github.com:StefanKarpinski/GraphModularDecomposition.jl.git
-[submodule "extern/lyt15"]
-	path = extern/lyt15
-	url = git@github.com:LyteFM/modular-decomposition.git
 [submodule "algorithms/miz23-sys/extern"]
 	path = algorithms/miz23-sys/extern
 	url = git@github.com:mogproject/modular-decomposition.git
