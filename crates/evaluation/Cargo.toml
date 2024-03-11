@@ -1,0 +1,16 @@
+[package]
+name = "evaluation"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+fracture.workspace = true
+skeleton.workspace = true
+linear-ref.workspace = true
+linear.workspace = true
+common.workspace = true
+clap.workspace = true
+petgraph.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

@@ -1,0 +1,10 @@
+[package]
+name = "playground"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+common.workspace = true
+linear.workspace = true
+petgraph.workspace = true

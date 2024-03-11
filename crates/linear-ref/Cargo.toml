@@ -1,0 +1,10 @@
+[package]
+name = "linear-ref"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+common.workspace = true
+linear-ref-sys.workspace = true
+petgraph.workspace = true

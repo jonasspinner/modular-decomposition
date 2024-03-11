@@ -1,0 +1,11 @@
+[package]
+name = "fracture"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+common.workspace = true
+petgraph.workspace = true
+tracing.workspace = true
+modular-decomposition.workspace = true

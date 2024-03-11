@@ -1,0 +1,11 @@
+[package]
+name = "skeleton"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+common.workspace = true
+petgraph.workspace = true
+rand = "0.8.5"
+tracing.workspace = true

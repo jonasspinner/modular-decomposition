@@ -1,0 +1,10 @@
+[package]
+name = "linear-ref-sys"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+
+[build-dependencies]
+cc = { version = "1.0", features = ["parallel"] }

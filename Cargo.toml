@@ -1,18 +1,34 @@
 [workspace]
 members = [
-    "algorithms/fracture",
-    "algorithms/skeleton",
-    "algorithms/linear-ref",
-    "algorithms/linear",
-    "algorithms/miz23-sys",
-    "common",
-    "evaluation",
-    "playground",
+    "crates/common",
+    "crates/evaluation",
+    "crates/fracture",
+    "crates/linear",
+    "crates/linear-ref",
+    "crates/linear-ref-sys",
+    "crates/modular-decomposition",
+    "crates/playground",
+    "crates/skeleton"
 ]
-resolver="2"
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Jonas Spinner"]
+repository = "https://github.com/jonasspinner/modular-decomposition"
 
 [workspace.dependencies]
 clap = { version = "4.4.7", features = ["derive"] }
-petgraph = "0.6.3"
+petgraph = "0.6.4"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.0", features = ["json"] }
+common = { path = "crates/common" }
+fracture = { path = "crates/fracture" }
+linear = { path = "crates/linear" }
+linear-ref = { path = "crates/linear-ref" }
+linear-ref-sys = { path = "crates/linear-ref-sys" }
+modular-decomposition = { path = "crates/modular-decomposition" }
+skeleton = { path = "crates/skeleton" }
+
