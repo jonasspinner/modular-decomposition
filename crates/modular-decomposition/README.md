@@ -1,7 +1,9 @@
 # Modular Decomposition
 
-This is a library to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a
+A library to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a
 simple, undirected graph.
+
+[![docs.rs](https://img.shields.io/docsrs/modular-decomposition?logo=rust)](https://docs.rs/modular-decomposition) [![Crates.io](https://img.shields.io/crates/v/modular-decomposition.svg?logo=rust)](https://crates.io/crates/modular-decomposition) [![Crates.io](https://img.shields.io/crates/l/modular-decomposition.svg)](./LICENSE)
 
 A node set *M* is a *module* if every node has the same neighborhood outside *M*. The set of all nodes *V* and the sets
 with a single node *{u}* are

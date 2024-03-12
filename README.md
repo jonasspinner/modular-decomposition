@@ -1,11 +1,14 @@
 # Modular Decomposition
 
-This project implements several algorithm to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a graph.
+A library to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a
+simple, undirected graph.
 
-The project is structures as follows.
+[![docs.rs](https://img.shields.io/docsrs/modular-decomposition?logo=rust)](https://docs.rs/modular-decomposition) [![Crates.io](https://img.shields.io/crates/v/modular-decomposition.svg?logo=rust)](https://crates.io/crates/modular-decomposition) [![Crates.io](https://img.shields.io/crates/l/modular-decomposition.svg)](./LICENSE)
+
+This project implements several algorithms for computing the modular decomposition and evaluates them. It is structures as follows.
 
 **Library**
-+ `crates/modular-decomposition` A package providing the `fracture` algorithm based on [[HPV99]](https://doi.org/10.1142/S0129054199000125) and [[CHM02]](https://doi.org/10.46298/dmtcs.298) as a library.
++ [`crates/modular-decomposition`](./crates/modular-decomposition/README.md) A crate providing the `fracture` algorithm based on [[HPV99]](https://doi.org/10.1142/S0129054199000125) and [[CHM02]](https://doi.org/10.46298/dmtcs.298) as a [library](https://crates.io/crates/modular-decomposition).
 
 **Algorithms**
 + `crates/linear-ref-sys`/`crates/linear-ref` Bindings and wrapper to reference C++ implementation [[Miz23]](https://github.com/mogproject/modular-decomposition) based on [[TCHP08]](https://doi.org/10.1007/978-3-540-70575-8_52).
