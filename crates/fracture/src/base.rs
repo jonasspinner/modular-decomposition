@@ -267,11 +267,11 @@ impl NodeInProgress {
 }
 
 #[instrument(skip_all)]
-fn classify_nodes(t: &Vec<NodeInProgress>, neighbors: &[HashSet<NodeIndex>]) -> StrongModuleTree {
+fn classify_nodes(t: &[NodeInProgress], neighbors: &[HashSet<NodeIndex>]) -> StrongModuleTree {
     classify_nodes_rec(t, neighbors)
 }
 
-fn classify_nodes_rec(t: &Vec<NodeInProgress>, neighbors: &[HashSet<NodeIndex>]) -> StrongModuleTree {
+fn classify_nodes_rec(t: &[NodeInProgress], neighbors: &[HashSet<NodeIndex>]) -> StrongModuleTree {
     let n = t.len();
 
     let nodes: Vec<_> = t.iter().map(|n| n.first_leaf()).collect();

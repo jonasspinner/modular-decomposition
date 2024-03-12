@@ -179,7 +179,7 @@ impl Graph {
     pub(crate) fn incident_edges(
         &self,
         node: NodeIndex,
-    ) -> impl Iterator<Item = (NodeIndex, EdgeIndex)> + FusedIterator + ExactSizeIterator + '_ {
+    ) -> impl FusedIterator<Item = (NodeIndex, EdgeIndex)> + ExactSizeIterator + '_ {
         let Node { start, end } = self.nodes[node.index()];
         self.edges[start.index()..end.index()]
             .iter()
