@@ -1,28 +1,45 @@
-//! `modular-decomposition` is a library to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a simple, undirected graph.
+//! This is a library to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a simple, undirected graph.
 //!
 //! A node set *M* is a *module* if every node has the same neighborhood outside
-//! of *M*. The set of all nodes *V* and the sets with a single node *{u}* are
+//! *M*. The set of all nodes *V* and the sets with a single node *{u}* are
 //! trivial modules.
 //!
 //! # Examples
 //!
 //! The smallest prime graph is the path graph on 4 nodes.
 //! ```rust
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
 //! use petgraph::graph::UnGraph;
 //! use modular_decomposition::{ModuleKind, modular_decomposition};
+//!
+//! // a path graph with 4 nodes
 //! let graph = UnGraph::<(), ()>::from_edges([(0, 1), (1, 2), (2, 3)]);
-//! let md = modular_decomposition(&graph).unwrap();
+//! let md = modular_decomposition(&graph)?;
+//!
 //! assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Prime));
+//! # Ok(())
+//! # }
 //! ```
 //!
-//! We can determine whether a graph is a [cograph](https://en.wikipedia.org/wiki/Cograph).
+//! Determining whether a graph is a [cograph](https://en.wikipedia.org/wiki/Cograph).
 //! ```rust
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
 //! use petgraph::graph::UnGraph;
 //! use modular_decomposition::{ModuleKind, modular_decomposition};
+//!
+//! // a complete graph with 3 nodes
 //! let graph = UnGraph::<(), ()>::from_edges([(0, 1), (0, 2), (1, 2)]);
-//! let md = modular_decomposition(&graph).unwrap();
+//! let md = modular_decomposition(&graph)?;
+//!
+//! // a graph is a cograph exactly if none of its modules is prime
 //! let is_cograph = md.module_kinds().all(|kind| *kind != ModuleKind::Prime);
 //! assert!(is_cograph);
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! # Generics
@@ -80,7 +97,7 @@ mod test {
                 ModuleKind::Prime => counts.prime += 1,
                 ModuleKind::Series => counts.series += 1,
                 ModuleKind::Parallel => counts.parallel += 1,
-                ModuleKind::Vertex(_) => counts.vertex += 1,
+                ModuleKind::Node(_) => counts.vertex += 1,
             }
         }
         counts
@@ -99,7 +116,7 @@ mod test {
         let md = modular_decomposition(&graph).unwrap();
         assert_eq!(md.node_count(), 1);
         assert_eq!(count_module_kinds(&md), [0, 0, 0, 1]);
-        assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Vertex(NodeIndex::new(0))));
+        assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Node(NodeIndex::new(0))));
     }
 
     #[test]

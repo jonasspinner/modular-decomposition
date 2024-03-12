@@ -1,19 +1,55 @@
 # Modular Decomposition
 
-A $O(n + m \log n)$ algorithm based on [[HPV99]](https://doi.org/10.1142/S0129054199000125) and [[CHM02]](https://doi.org/10.46298/dmtcs.298).
+This is a library to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a
+simple, undirected graph.
+
+A node set *M* is a *module* if every node has the same neighborhood outside *M*. The set of all nodes *V* and the sets
+with a single node *{u}* are
+trivial modules.
+
+The modular decomposition algorithm in this library has a O(n + m log n) running time and is based
+on [[HPV99]](https://doi.org/10.1142/S0129054199000125) and [[CHM02]](https://doi.org/10.46298/dmtcs.298). Although
+linear time algorithms exists, they perform worse in comparison.
+
+## Examples
+
+The smallest prime graph is the path graph on 4 nodes.
+
+```rust
+use petgraph::graph::UnGraph;
+use modular_decomposition::{ModuleKind, modular_decomposition};
+
+// a path graph with 4 nodes
+let graph = UnGraph::<(), ()>::from_edges([(0, 1), (1, 2), (2, 3)]);
+let md = modular_decomposition(&graph).unwrap();
+
+assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Prime));
+```
+
+Determining whether a graph is a [cograph](https://en.wikipedia.org/wiki/Cograph).
+
+```rust
+use petgraph::graph::UnGraph;
+use modular_decomposition::{ModuleKind, modular_decomposition};
+
+// a complete graph with 3 nodes
+let graph = UnGraph::<(), ()>::from_edges([(0, 1), (0, 2), (1, 2)]);
+let md = modular_decomposition(&graph).unwrap();
+
+// a graph is a cograph exactly if none of its modules is prime
+let is_cograph = md.module_kinds().all(|kind| *kind != ModuleKind::Prime);
+assert!(is_cograph);
+```
+
+## Generics
+
+The algorithm is implemented for structs that implement the `petgraph`
+traits `NodeCompactIndexable`, `IntoNeighbors`, and `GraphProp<EdgeType = Undirected>`.
 
 ## Evaluation
 
 ![](../../evaluation.png)
 
-This figure shows the algorithm performance for some datasets.
-The time for multiple runs is averaged for each instance and algorithm. The time for each algorithm is divided by the best time and the distribution is plotted.
-The `fracture` algorithm performs best for most instances.
-
-## References
-
-+ [HPV99] Michel Habib, Christophe Paul, and Laurent Viennot. “Partition Refinement Techniques: An Interesting Algorithmic Tool Kit”. https://doi.org/10.1142/S0129054199000125.
-+ [CHM02] Christian Capelle, Michel Habib, and Fabien Montgolfier. “Graph Decompositions and Factorizing Permutations”. https://doi.org/10.46298/dmtcs.298
-+ [MS00] Ross M. Mcconnell and Jeremy P. Spinrad. “Ordered Vertex Partitioning”. https://doi.org/10.46298/dmtcs.274
-+ [TCHP08] Marc Tedder, Derek Corneil, Michel Habib, and Christophe Paul. “Simpler Linear-Time Modular Decomposition Via Recursive Factorizing Permutations”. https://doi.org/10.1007/978-3-540-70575-8_52.
-+ [Miz23] https://github.com/mogproject/modular-decomposition
+As part of a thesis, we evaluated four implementations of modular decomposition algorithms.
+The `fracture` algorithm performs best and is provided in this library. For more information see
+the [repository](https://github.com/jonasspinner/modular-decomposition/).

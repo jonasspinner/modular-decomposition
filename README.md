@@ -2,18 +2,36 @@
 
 This project implements several algorithm to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a graph.
 
-+ `fracture`
-  + A $O(n + m \log n)$ algorithm based on [[HPV99]](https://doi.org/10.1142/S0129054199000125) and [[CHM02]](https://doi.org/10.46298/dmtcs.298).
-  + First sketch based on a Julia implementation [[Kar19]](https://github.com/StefanKarpinski/GraphModularDecomposition.jl), but now heavily modified.
-+ `skeleton`
-  + A $O(n + m \log n)$ algorithm based on [[MS00]](https://doi.org/10.46298/dmtcs.274).
-+ `linear (ref)`
-  + A $O(n + m)$ algorithm based on [[TCHP08]](https://doi.org/10.1007/978-3-540-70575-8_52).
-  + A wrapper for the C++ implementation of [[Miz23]](https://github.com/mogproject/modular-decomposition).
-+ `linear`
-  + A $O(n + m)$ algorithm based on [[TCHP08]](https://doi.org/10.1007/978-3-540-70575-8_52).
-  + A port of the C++ implementation of [[Miz23]](https://github.com/mogproject/modular-decomposition) to Rust.
-  + Some additional modifications.
+The project is structures as follows.
+
+**Library**
++ `crates/modular-decomposition` A package providing the `fracture` algorithm based on [[HPV99]](https://doi.org/10.1142/S0129054199000125) and [[CHM02]](https://doi.org/10.46298/dmtcs.298) as a library.
+
+**Algorithms**
++ `crates/linear-ref-sys`/`crates/linear-ref` Bindings and wrapper to reference C++ implementation [[Miz23]](https://github.com/mogproject/modular-decomposition) based on [[TCHP08]](https://doi.org/10.1007/978-3-540-70575-8_52).
++ `crates/linear` Rust port of [[Miz23]](https://github.com/mogproject/modular-decomposition) based on [[TCHP08]](https://doi.org/10.1007/978-3-540-70575-8_52).
++ `crates/skeleton` Based on [[MS00]](https://doi.org/10.46298/dmtcs.274).
++ `crates/fracture` Based on [[HPV99]](https://doi.org/10.1142/S0129054199000125) and [[CHM02]](https://doi.org/10.46298/dmtcs.298). Uses the implementation in `crates/modular-decomposition`.
+
+**Others**
++ `crates/common` Common utilities shared by the algorithm crate
++ `crates/playground` A crate to experiment with related algorithms and data structures.
++ `crates/evaluation` Evaluation of the algorithms on real-world and generated data.
+
+## Usage
+
+The crate `crates/modular-decomposition` provides an API to compute the modular decomposition.
+
+```rust
+use petgraph::graph::UnGraph;
+use modular_decomposition::{ModuleKind, modular_decomposition};
+
+let graph = UnGraph::<(), ()>::from_edges([(0, 1), (1, 2), (2, 3)]);
+let md = modular_decomposition(&graph).unwrap();
+
+assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Prime));
+```
+
 
 ## Evaluation
 
@@ -22,16 +40,7 @@ This project implements several algorithm to compute the [modular decomposition]
 This figure shows the algorithm performance for some datasets.
 The time for multiple runs is averaged for each instance and algorithm. The time for each algorithm is divided by the best time and the distribution is plotted.
 The `fracture` algorithm performs best for most instances.
-
-## As a library
-
-The crates implementing the algorithms provide a API for the modular decompostion.
-```
-pub fn modular_decomposition<N, E>(graph: &Graph<N, E, Undirected>) -> DiGraph<MDNodeKind, ()>
-{
-    prepare(graph).compute().finalize()
-}
-```
+The evaluation code can be found in `crates/evaluation`.
 
 ## References
 

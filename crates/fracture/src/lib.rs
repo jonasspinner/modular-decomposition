@@ -45,7 +45,7 @@ impl Computed {
                 ModuleKind::Prime => MDNodeKind::Prime,
                 ModuleKind::Series => MDNodeKind::Series,
                 ModuleKind::Parallel => MDNodeKind::Parallel,
-                ModuleKind::Vertex(v) => MDNodeKind::Vertex(v.index()),
+                ModuleKind::Node(v) => MDNodeKind::Vertex(v.index()),
             },
             |_, _| (),
         )

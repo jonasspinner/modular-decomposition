@@ -1,26 +1,30 @@
 mod factorizing_permutation;
 
 use crate::fracture::factorizing_permutation::{factorizing_permutation, Permutation};
-use crate::md_tree::{MDTree, ModuleKind, NodeIndex, NullGraph};
+use crate::md_tree::{MDTree, ModuleKind, NodeIndex, NullGraphError};
 use crate::segmented_stack::SegmentedStack;
 use petgraph::graph::DiGraph;
 use petgraph::visit::{GraphProp, IntoNeighbors, NodeCompactIndexable};
 use petgraph::Undirected;
 use tracing::{info, instrument};
 
-/// Computes the modular decomposition.
+/// Computes the modular decomposition of the graph.
+///
+/// # Errors
+///
+/// Returns a `NullGraphError` if the input graph does not contain any nodes or edges.
 #[instrument(skip_all)]
-pub fn modular_decomposition<G>(graph: G) -> Result<MDTree, NullGraph>
+pub fn modular_decomposition<G>(graph: G) -> Result<MDTree, NullGraphError>
 where
     G: NodeCompactIndexable + IntoNeighbors + GraphProp<EdgeType = Undirected>,
 {
     let n = graph.node_bound();
     if n == 0 {
-        return Err(NullGraph);
+        return Err(NullGraphError);
     }
     if n == 1 {
         let mut tree = DiGraph::new();
-        tree.add_node(ModuleKind::Vertex(NodeIndex::new(0)));
+        tree.add_node(ModuleKind::Node(NodeIndex::new(0)));
         return MDTree::from_digraph(tree);
     }
 
@@ -141,7 +145,7 @@ pub(crate) fn build_parenthesizing<G>(
 
 #[instrument(skip_all)]
 pub(crate) fn remove_non_module_dummy_nodes(op: &mut [u32], cl: &mut [u32], lc: &[u32], uc: &[u32]) {
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct Info {
         first_vertex: u32,
         last_vertex: u32,
@@ -216,36 +220,40 @@ pub(crate) fn remove_non_module_dummy_nodes(op: &mut [u32], cl: &mut [u32], lc: 
 
 #[instrument(skip_all)]
 pub(crate) fn create_consecutive_twin_nodes(op: &mut [u32], cl: &mut [u32], lc: &[u32], uc: &[u32]) {
-    let n = op.len();
-    let mut s = Vec::with_capacity(n);
-    let mut l = 0;
-    for k in 0..n {
-        s.push((k, l));
-        l = k;
-        s.extend(std::iter::repeat((k, k)).take(op[k] as _));
-        for c in (0..cl[k] + 1).rev() {
-            let (j, i) = s.pop().unwrap();
-
-            l = i;
-            if i >= j {
-                continue;
+    let handle_inner_node = |op: &mut [u32], cl: &mut [u32], nodes: &[(u32, u32)]| -> (u32, u32) {
+        if nodes.len() == 1 {
+            return nodes[0];
+        }
+        let mut add_brackets = |start: &mut Option<u32>, end: u32| {
+            if let Some(start) = start.take() {
+                op[start as usize] += 1;
+                cl[end as usize] += 1;
             }
-            let (a, b) = (lc[j - 1] as usize, uc[j - 1] as usize);
-            if i <= a && a < b && b <= k {
-                if c > 0 {
-                    op[i] += 1;
-                    cl[k] += 1;
-                    l = k + 1;
-                }
+        };
+        let mut start = None;
+        for (&(first_vertex, end), &(_, last_vertex)) in nodes.iter().zip(nodes.iter().skip(1)) {
+            if first_vertex <= lc[end as usize] && uc[end as usize] <= last_vertex {
+                start = start.or(Some(first_vertex));
             } else {
-                if i < j - 1 {
-                    op[i] += 1;
-                    cl[j - 1] += 1;
-                }
-                l = j;
+                add_brackets(&mut start, end)
             }
         }
+        let ((first_vertex, _), (_, last_vertex)) = (nodes[0], nodes[nodes.len() - 1]);
+        add_brackets(&mut start, last_vertex);
+        (first_vertex, last_vertex)
+    };
+
+    let mut s = SegmentedStack::with_capacity(op.len());
+    for j in 0..op.len() {
+        s.extend(op[j] as _);
+        s.add((j as u32, j as u32));
+        for _ in 0..cl[j] {
+            let info = handle_inner_node(op, cl, s.pop());
+            s.add(info);
+        }
     }
+    assert!(s.is_empty());
+    debug_assert_eq!(op.iter().sum::<u32>(), cl.iter().sum());
 }
 
 #[instrument(skip_all)]
@@ -263,7 +271,7 @@ where
 
     let handle_vertex_node = |t: &mut DiGraph<ModuleKind, ()>,
                               x: NodeIndex|
-     -> (NodeIndex, petgraph::graph::NodeIndex) { (x, t.add_node(ModuleKind::Vertex(x))) };
+     -> (NodeIndex, petgraph::graph::NodeIndex) { (x, t.add_node(ModuleKind::Node(x))) };
 
     let mut marked = vec![0; n];
     let mut gen = 0;
@@ -334,6 +342,7 @@ where
         if nodes.len() == 1 {
             return nodes[0];
         }
+        assert!(nodes.len() > 1);
         let (y, kind) = determine_node_kind(t, nodes);
         let idx = t.add_node(kind);
         for (_, u) in nodes {
@@ -370,7 +379,7 @@ mod test {
         remove_non_module_dummy_nodes,
     };
     use petgraph::dot::{Config, Dot};
-    use petgraph::graph::{DiGraph, UnGraph};
+    use petgraph::graph::UnGraph;
     use petgraph::visit::NodeIndexable;
 
     fn print_parenthesis(op: &[u32], cl: &[u32], permutation: &Permutation) {

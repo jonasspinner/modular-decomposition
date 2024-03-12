@@ -18,6 +18,7 @@ edition = "2021"
 license = "MIT"
 authors = ["Jonas Spinner"]
 repository = "https://github.com/jonasspinner/modular-decomposition"
+homepage = "https://github.com/jonasspinner/modular-decomposition"
 
 [workspace.dependencies]
 clap = { version = "4.4.7", features = ["derive"] }

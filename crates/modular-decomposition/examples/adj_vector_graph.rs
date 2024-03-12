@@ -1,6 +1,8 @@
-use modular_decomposition::modular_decomposition;
-use petgraph::visit::{GraphBase, GraphProp, IntoNeighbors, NodeCompactIndexable, NodeCount, NodeIndexable};
-use petgraph::Undirected;
+use modular_decomposition::{modular_decomposition, ModuleKind};
+use petgraph::dot::Config::EdgeNoLabel;
+use petgraph::dot::Dot;
+use petgraph::visit::{Dfs, GraphBase, GraphProp, IntoNeighbors, NodeCompactIndexable, NodeCount, NodeIndexable};
+use petgraph::{Incoming, Undirected};
 
 struct Graph(Vec<Vec<usize>>);
 
@@ -69,5 +71,17 @@ impl NodeCompactIndexable for Graph {}
 
 fn main() {
     let graph = Graph::from_edges([(0, 1), (1, 2), (2, 3)]);
-    let _tree = modular_decomposition(&graph);
+    let tree = modular_decomposition(&graph).map(|tree| tree.into_digraph()).unwrap_or_default();
+    println!("{:?}", Dot::with_config(&tree, &[EdgeNoLabel]));
+
+    let mut factorizing_permutation = Vec::new();
+    let root = tree.externals(Incoming).next().unwrap();
+    let mut dfs = Dfs::new(&tree, root);
+    while let Some(node) = dfs.next(&tree) {
+        if let ModuleKind::Node(u) = tree[node] {
+            factorizing_permutation.push(u);
+        }
+    }
+    let factorizing_permutation: Vec<_> = factorizing_permutation.iter().map(|u| u.index()).collect();
+    println!("{:?}", factorizing_permutation);
 }

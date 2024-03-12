@@ -1,11 +1,13 @@
 [package]
 name = "modular-decomposition"
 version.workspace = true
-authors.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
 repository.workspace = true
+homepage.workspace = true
 readme = "README.md"
+description = "A library for computing the modular decomposition of a graph"
 categories = ["science", "algorithms"]
 keywords = ["graph", "modular", "decomposition"]
 
