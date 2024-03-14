@@ -23,7 +23,7 @@ use modular_decomposition::{ModuleKind, modular_decomposition};
 
 // a path graph with 4 nodes
 let graph = UnGraph::<(), ()>::from_edges([(0, 1), (1, 2), (2, 3)]);
-let md = modular_decomposition(&graph).unwrap();
+let md = modular_decomposition(&graph)?;
 
 assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Prime));
 ```
@@ -36,7 +36,7 @@ use modular_decomposition::{ModuleKind, modular_decomposition};
 
 // a complete graph with 3 nodes
 let graph = UnGraph::<(), ()>::from_edges([(0, 1), (0, 2), (1, 2)]);
-let md = modular_decomposition(&graph).unwrap();
+let md = modular_decomposition(&graph)?;
 
 // a graph is a cograph exactly if none of its modules is prime
 let is_cograph = md.module_kinds().all(|kind| *kind != ModuleKind::Prime);

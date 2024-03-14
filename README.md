@@ -30,7 +30,7 @@ use petgraph::graph::UnGraph;
 use modular_decomposition::{ModuleKind, modular_decomposition};
 
 let graph = UnGraph::<(), ()>::from_edges([(0, 1), (1, 2), (2, 3)]);
-let md = modular_decomposition(&graph).unwrap();
+let md = modular_decomposition(&graph)?;
 
 assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Prime));
 ```
