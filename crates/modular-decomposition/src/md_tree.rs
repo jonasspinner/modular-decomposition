@@ -134,3 +134,31 @@ impl Display for NullGraphError {
 }
 
 impl std::error::Error for NullGraphError {}
+
+#[cfg(test)]
+mod test {
+    use petgraph::graph::NodeIndex;
+    use petgraph::Outgoing;
+
+    use crate::tests::complete_graph;
+    use crate::{modular_decomposition, ModuleKind};
+
+    #[test]
+    fn mdtree_and_digraph_are_equivalent() {
+        let graph = complete_graph(5);
+        let md = modular_decomposition(&graph).unwrap();
+        let root = md.root();
+
+        assert_eq!(md.module_kind(root), Some(&ModuleKind::Series));
+
+        let children: Vec<_> = md.children(root).collect();
+        assert_eq!(md.module_kind(children[0]), Some(&ModuleKind::Node(NodeIndex::new(0))));
+
+        let md = md.into_digraph();
+        let root = NodeIndex::new(root.index());
+
+        let children: Vec<_> = md.neighbors_directed(root, Outgoing).collect();
+        assert_eq!(md.node_weight(root), Some(&ModuleKind::Series));
+        assert_eq!(md.node_weight(children[0]), Some(&ModuleKind::Node(NodeIndex::new(0))));
+    }
+}
