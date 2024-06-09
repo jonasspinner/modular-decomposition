@@ -63,11 +63,11 @@ impl Debug for ModuleIndex {
 }
 
 impl ModuleIndex {
-    #[cfg(test)]
-    /// Create new ModuleIndex
-    fn new(idx: petgraph::graph::NodeIndex) -> Self {
-        Self(idx)
+    /// Create new index from `usize`.
+    pub fn new(x: usize) -> Self {
+        Self(petgraph::graph::NodeIndex::new(x))
     }
+
     /// Returns the index as `usize`.
     pub fn index(&self) -> usize {
         self.0.index()
@@ -123,6 +123,43 @@ impl<NodeId: Copy + PartialEq> MDTree<NodeId> {
     }
 
     /// Convert to [DiGraph].
+    ///
+    /// This allows the use of [petgraph] algorithms. Use [ModuleIndex::index] and
+    /// [petgraph::graph::NodeIndex::new] to convert the root index.
+    ///
+    /// ```rust
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use petgraph::graph::{NodeIndex, UnGraph};
+    /// use petgraph::visit::Dfs;
+    /// use modular_decomposition::{modular_decomposition, ModuleKind};
+    ///
+    /// let graph = UnGraph::<(), ()>::from_edges([(0, 2), (1, 2), (2, 3), (3, 4), (3, 5)]);
+    /// let md = modular_decomposition(&graph)?;
+    ///
+    /// let root = NodeIndex::new(md.root().index());
+    /// let digraph = md.into_digraph();
+    ///
+    /// let mut dfs = Dfs::new(&digraph, root);
+    /// let mut node_order = vec![];
+    /// while let Some(node) = dfs.next(&digraph) { node_order.push(*digraph.node_weight(node).unwrap()); }
+    ///
+    /// let expected_node_order = [
+    ///     ModuleKind::Prime,
+    ///     ModuleKind::Node(NodeIndex::new(2)),
+    ///     ModuleKind::Parallel,
+    ///     ModuleKind::Node(NodeIndex::new(0)),
+    ///     ModuleKind::Node(NodeIndex::new(1)),
+    ///     ModuleKind::Node(NodeIndex::new(3)),
+    ///     ModuleKind::Parallel,
+    ///     ModuleKind::Node(NodeIndex::new(4)),
+    ///     ModuleKind::Node(NodeIndex::new(5)),
+    /// ];
+    /// assert_eq!(node_order, expected_node_order);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn into_digraph(self) -> DiGraph<ModuleKind<NodeId>, ()> {
         self.tree
     }
@@ -178,7 +215,7 @@ mod test {
 
     #[test]
     fn module_index_fmt() {
-        let idx = ModuleIndex::new(NodeIndex::new(42));
+        let idx = ModuleIndex::new(42);
         assert_eq!(format!("{:?}", idx), "ModuleIndex(42)".to_string())
     }
 }
