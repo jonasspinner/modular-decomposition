@@ -75,8 +75,8 @@ jobs:
           command: clippy
           args: -- -D warnings
 
-  coverage:
-    name: Coverage
+  coverage-crate:
+    name: Coverage crate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository and submodules
@@ -94,5 +94,44 @@ jobs:
         with:
           command: llvm-cov
           args: --lcov --package modular-decomposition --output-path lcov.info
-      - name: Upload coverage to Coveralls
+      - name: Coveralls
         uses: coverallsapp/github-action@v2
+        with:
+          flag-name: crate
+          parallel: true
+
+  coverage-workspace:
+    name: Coverage workspace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Run llvm-cov
+        uses: actions-rs/cargo@v1
+        with:
+          command: llvm-cov
+          args: --lcov --workspace --output-path lcov.info
+      - name: Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          flag-name: workspace
+          parallel: true
+
+  finish:
+    needs: [ coverage-crate, coverage-workspace ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@v2
+        with:
+          parallel-finished: true
+          carryforward: "crate,workspace"
