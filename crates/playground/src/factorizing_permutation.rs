@@ -273,7 +273,7 @@ pub mod kar19_checked_impl {
                     continue;
                 }
                 //traceln!("refine:P:0: {:?}", d2(&*self.P));
-                self.P[i] = X.clone();
+                self.P[i].clone_from(&X);
                 self.P.insert(i + between as usize, X_a.clone());
                 //traceln!("refine:P:1: {:?}", d2(&*self.P));
                 self.add_pivot(X, X_a);

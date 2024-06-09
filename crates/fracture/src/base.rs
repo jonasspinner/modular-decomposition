@@ -384,7 +384,7 @@ mod factorizing_permutation {
                 continue;
             }
             trace!("refine:P:0: {:?}", d2(&*P));
-            P[i] = X.clone();
+            P[i].clone_from(&X);
             P.insert(i + between as usize, X_a.clone());
             trace!("refine:P:1: {:?}", d2(&*P));
             add_pivot(X, X_a, pivots, modules);

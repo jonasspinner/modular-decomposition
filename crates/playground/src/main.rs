@@ -50,7 +50,7 @@ fn small_graph() -> UnGraph<(), ()> {
 #[allow(non_snake_case)]
 fn main() {
     let graph = small_graph();
-    let _partition = vec![vec![5, 6], vec![0, 1, 2, 3, 4, 7, 8, 9, 10]];
+    let _partition = [vec![5, 6], vec![0, 1, 2, 3, 4, 7, 8, 9, 10]];
     //let partition = vec![vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]];
 
     let partition = vec![vec![3, 4], vec![0, 1, 2, 5, 6, 7, 8, 9, 10]];
