@@ -70,6 +70,7 @@ mod tests;
 pub use fracture::modular_decomposition;
 pub use md_tree::MDTree;
 pub use md_tree::ModuleKind;
+pub use md_tree::ModuleIndex;
 
 #[cfg(test)]
 mod test {
