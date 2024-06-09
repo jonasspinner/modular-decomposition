@@ -3,7 +3,7 @@
 A library to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a
 simple, undirected graph.
 
-[![docs.rs](https://img.shields.io/docsrs/modular-decomposition?logo=rust)](https://docs.rs/modular-decomposition) [![Crates.io](https://img.shields.io/crates/v/modular-decomposition.svg?logo=rust)](https://crates.io/crates/modular-decomposition) [![Crates.io](https://img.shields.io/crates/l/modular-decomposition.svg)](./LICENSE)
+[![docs.rs](https://img.shields.io/docsrs/modular-decomposition?logo=rust)](https://docs.rs/modular-decomposition) [![Coverage Status](https://coveralls.io/repos/github/jonasspinner/modular-decomposition/badge.svg?branch=main)](https://coveralls.io/github/jonasspinner/modular-decomposition?branch=main) [![Crates.io](https://img.shields.io/crates/v/modular-decomposition.svg?logo=rust)](https://crates.io/crates/modular-decomposition) [![Crates.io](https://img.shields.io/crates/l/modular-decomposition.svg)](./LICENSE)
 
 This project implements several algorithms for computing the modular decomposition and evaluates them. It is structures as follows.
 
