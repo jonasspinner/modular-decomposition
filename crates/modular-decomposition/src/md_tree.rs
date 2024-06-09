@@ -53,8 +53,8 @@ pub struct MDTree<NodeId: Copy + PartialEq> {
 }
 
 /// Module identifier.
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
-pub struct ModuleIndex(petgraph::graph::NodeIndex);
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct ModuleIndex(pub(crate) petgraph::graph::NodeIndex);
 
 impl Debug for ModuleIndex {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -63,6 +63,11 @@ impl Debug for ModuleIndex {
 }
 
 impl ModuleIndex {
+    #[cfg(test)]
+    /// Create new ModuleIndex
+    fn new(idx: petgraph::graph::NodeIndex) -> Self {
+        Self(idx)
+    }
     /// Returns the index as `usize`.
     pub fn index(&self) -> usize {
         self.0.index()
@@ -124,7 +129,7 @@ impl<NodeId: Copy + PartialEq> MDTree<NodeId> {
 }
 
 /// A graph does not contain any nodes or edges.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct NullGraphError;
 
 impl Display for NullGraphError {
@@ -137,11 +142,12 @@ impl std::error::Error for NullGraphError {}
 
 #[cfg(test)]
 mod test {
-    use petgraph::graph::NodeIndex;
+    use petgraph::graph::{DiGraph, NodeIndex};
     use petgraph::Outgoing;
 
+    use crate::md_tree::NullGraphError;
     use crate::tests::complete_graph;
-    use crate::{modular_decomposition, ModuleKind};
+    use crate::{modular_decomposition, MDTree, ModuleIndex, ModuleKind};
 
     #[test]
     fn mdtree_and_digraph_are_equivalent() {
@@ -160,5 +166,19 @@ mod test {
         let children: Vec<_> = md.neighbors_directed(root, Outgoing).collect();
         assert_eq!(md.node_weight(root), Some(&ModuleKind::Series));
         assert_eq!(md.node_weight(children[0]), Some(&ModuleKind::Node(NodeIndex::new(0))));
+    }
+
+    #[test]
+    fn null_graph_error() {
+        let digraph: DiGraph<ModuleKind<NodeIndex>, ()> = Default::default();
+        let err = MDTree::from_digraph(digraph).unwrap_err();
+        assert_eq!(err, NullGraphError);
+        assert_eq!(format!("{}", err), "graph does not contain any nodes or edges".to_string());
+    }
+
+    #[test]
+    fn module_index_fmt() {
+        let idx = ModuleIndex::new(NodeIndex::new(42));
+        assert_eq!(format!("{:?}", idx), "ModuleIndex(42)".to_string())
     }
 }
