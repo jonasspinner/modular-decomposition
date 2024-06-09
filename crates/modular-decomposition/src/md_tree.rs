@@ -26,7 +26,7 @@ pub enum ModuleKind<NodeId: Copy + PartialEq> {
     Node(NodeId),
 }
 
-impl<Ix: Debug + Copy + PartialEq> Debug for ModuleKind<Ix> {
+impl<NodeId: Debug + Copy + PartialEq> Debug for ModuleKind<NodeId> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ModuleKind::Prime => {
