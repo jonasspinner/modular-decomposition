@@ -3,7 +3,7 @@ mod base;
 use common::modular_decomposition::MDNodeKind;
 use modular_decomposition::fracture::modular_decomposition as fracture_modular_decomposition;
 use modular_decomposition::ModuleKind;
-use petgraph::graph::{DiGraph, UnGraph};
+use petgraph::graph::{DiGraph, NodeIndex, UnGraph};
 use tracing::info;
 
 #[macro_export]
@@ -28,7 +28,7 @@ pub fn prepare<N, E>(graph: &UnGraph<N, E>) -> Prepared {
 }
 
 pub struct Computed {
-    tree: DiGraph<ModuleKind, ()>,
+    tree: DiGraph<ModuleKind<NodeIndex>, ()>,
 }
 
 impl Prepared {

@@ -82,6 +82,6 @@ fn main() {
             factorizing_permutation.push(u);
         }
     }
-    let factorizing_permutation: Vec<_> = factorizing_permutation.iter().map(|u| u.index()).collect();
+    let factorizing_permutation: Vec<_> = factorizing_permutation.to_vec();
     println!("{:?}", factorizing_permutation);
 }

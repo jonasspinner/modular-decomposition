@@ -1,9 +1,11 @@
-use crate::index::make_index;
-use petgraph::graph::DiGraph;
-use petgraph::{Incoming, Outgoing};
 use std::fmt::{Debug, Display, Formatter};
 
-make_index!(pub NodeIndex);
+use petgraph::graph::DiGraph;
+use petgraph::{Incoming, Outgoing};
+
+use crate::index::make_index;
+
+make_index!(pub(crate) NodeIndex);
 
 /// Module kinds of nodes in a [MDTree].
 ///
@@ -13,7 +15,7 @@ make_index!(pub NodeIndex);
 /// The module kinds are determined by the quotient graph of a module that is obtained by taking a
 /// single node from each child module.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub enum ModuleKind {
+pub enum ModuleKind<NodeId: Copy + PartialEq> {
     /// A prime module. Its quotient graph has only trivial modules.
     Prime,
     /// A series module. Its quotient graph is a complete graph.
@@ -21,10 +23,10 @@ pub enum ModuleKind {
     /// A parallel module. Its quotient graph is an empty graph.
     Parallel,
     /// A trivial module with a single vertex. This is leaf node in the [MDTree].
-    Node(NodeIndex),
+    Node(NodeId),
 }
 
-impl Debug for ModuleKind {
+impl<Ix: Debug + Copy + PartialEq> Debug for ModuleKind<Ix> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ModuleKind::Prime => {
@@ -37,7 +39,7 @@ impl Debug for ModuleKind {
                 write!(f, "Parallel")
             }
             ModuleKind::Node(v) => {
-                write!(f, "{v}")
+                write!(f, "{v:?}")
             }
         }
     }
@@ -45,16 +47,29 @@ impl Debug for ModuleKind {
 
 /// A modular decomposition tree. The tree contains at least one node.
 #[derive(Clone, Debug)]
-pub struct MDTree {
-    tree: DiGraph<ModuleKind, ()>,
-    root: petgraph::graph::NodeIndex,
+pub struct MDTree<NodeId: Copy + PartialEq> {
+    tree: DiGraph<ModuleKind<NodeId>, ()>,
+    root: ModuleIndex,
 }
 
 /// Module identifier.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct ModuleIndex(petgraph::graph::NodeIndex);
 
-impl MDTree {
+impl Debug for ModuleIndex {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ModuleIndex").field(&self.0.index()).finish()
+    }
+}
+
+impl ModuleIndex {
+    /// Returns the index as `usize`.
+    pub fn index(&self) -> usize {
+        self.0.index()
+    }
+}
+
+impl<NodeId: Copy + PartialEq> MDTree<NodeId> {
     /// Create a new modular decomposition tree.
     ///
     /// Assumes that the input `DiGraph` is rooted tree with node weights
@@ -64,11 +79,12 @@ impl MDTree {
     /// Return `NullGraph` if the input graph does not have any nodes.
     ///
     /// Panics if all nodes have a non-zero in-degree.
-    pub(crate) fn from_digraph(tree: DiGraph<ModuleKind, ()>) -> Result<Self, NullGraphError> {
+    pub(crate) fn from_digraph(tree: DiGraph<ModuleKind<NodeId>, ()>) -> Result<Self, NullGraphError> {
         if tree.node_count() == 0 {
             return Err(NullGraphError);
         }
         let root = tree.externals(Incoming).next().expect("non-null trees must have a root");
+        let root = ModuleIndex(root);
         Ok(Self { tree, root })
     }
 
@@ -81,18 +97,18 @@ impl MDTree {
     /// Return the root node index.
     #[inline(always)]
     pub fn root(&self) -> ModuleIndex {
-        ModuleIndex(self.root)
+        self.root
     }
 
     /// Access the [ModuleKind] of a module.
     ///
     /// If the module does not exist, return None.
-    pub fn module_kind(&self, module: ModuleIndex) -> Option<&ModuleKind> {
+    pub fn module_kind(&self, module: ModuleIndex) -> Option<&ModuleKind<NodeId>> {
         self.tree.node_weight(module.0)
     }
 
     /// Return an iterator yielding references to [ModuleKind]s for all nodes.
-    pub fn module_kinds(&self) -> impl Iterator<Item = &ModuleKind> {
+    pub fn module_kinds(&self) -> impl Iterator<Item = &ModuleKind<NodeId>> {
         self.tree.node_weights()
     }
 
@@ -102,7 +118,7 @@ impl MDTree {
     }
 
     /// Convert to [DiGraph].
-    pub fn into_digraph(self) -> DiGraph<ModuleKind, ()> {
+    pub fn into_digraph(self) -> DiGraph<ModuleKind<NodeId>, ()> {
         self.tree
     }
 }

@@ -14,7 +14,7 @@ use tracing::{info, instrument};
 ///
 /// Returns a `NullGraphError` if the input graph does not contain any nodes or edges.
 #[instrument(skip_all)]
-pub fn modular_decomposition<G>(graph: G) -> Result<MDTree, NullGraphError>
+pub fn modular_decomposition<G>(graph: G) -> Result<MDTree<G::NodeId>, NullGraphError>
 where
     G: NodeCompactIndexable + IntoNeighbors + GraphProp<EdgeType = Undirected>,
 {
@@ -24,7 +24,7 @@ where
     }
     if n == 1 {
         let mut tree = DiGraph::new();
-        tree.add_node(ModuleKind::Node(NodeIndex::new(0)));
+        tree.add_node(ModuleKind::Node(graph.from_index(0)));
         return MDTree::from_digraph(tree);
     }
 
@@ -257,7 +257,7 @@ pub(crate) fn create_consecutive_twin_nodes(op: &mut [u32], cl: &mut [u32], lc: 
 }
 
 #[instrument(skip_all)]
-pub(crate) fn build_tree<G>(graph: G, op: &[u32], cl: &[u32], p: &Permutation) -> DiGraph<ModuleKind, ()>
+pub(crate) fn build_tree<G>(graph: G, op: &[u32], cl: &[u32], p: &Permutation) -> DiGraph<ModuleKind<G::NodeId>, ()>
 where
     G: NodeCompactIndexable + IntoNeighbors + GraphProp<EdgeType = Undirected>,
 {
@@ -269,16 +269,17 @@ where
     let degrees: Vec<u32> =
         (0..graph.node_bound()).map(|i| graph.from_index(i)).map(|u| graph.neighbors(u).count() as _).collect();
 
-    let handle_vertex_node = |t: &mut DiGraph<ModuleKind, ()>,
-                              x: NodeIndex|
-     -> (NodeIndex, petgraph::graph::NodeIndex) { (x, t.add_node(ModuleKind::Node(x))) };
+    let handle_vertex_node =
+        |t: &mut DiGraph<ModuleKind<G::NodeId>, ()>, x: NodeIndex| -> (NodeIndex, petgraph::graph::NodeIndex) {
+            (x, t.add_node(ModuleKind::Node(graph.from_index(x.index()))))
+        };
 
     let mut marked = vec![0; n];
     let mut gen = 0;
 
-    let mut determine_node_kind = |t: &mut DiGraph<ModuleKind, ()>,
+    let mut determine_node_kind = |t: &mut DiGraph<ModuleKind<G::NodeId>, ()>,
                                    nodes: &[(NodeIndex, petgraph::graph::NodeIndex)]|
-     -> (NodeIndex, ModuleKind) {
+     -> (NodeIndex, ModuleKind<G::NodeId>) {
         // Calculate the degrees between children of a module.
         // Every module keeps a graph node as a representative. Mark the representatives
         // of the children. For each representative, iterate over its neighbors.
@@ -330,13 +331,13 @@ where
 
         if kind != ModuleKind::Prime {
             debug_assert!(nodes.iter().map(|(y, _)| quotient_degree(*y)).all(|d| d == d0));
-            debug_assert!(nodes.iter().all(|(_, u)| t[*u] != kind), "{:?}", kind);
+            debug_assert!(nodes.iter().all(|(_, u)| t[*u] != kind));
         }
 
         (y, kind)
     };
 
-    let mut handle_inner_node = |t: &mut DiGraph<ModuleKind, ()>,
+    let mut handle_inner_node = |t: &mut DiGraph<ModuleKind<G::NodeId>, ()>,
                                  nodes: &[(NodeIndex, petgraph::graph::NodeIndex)]|
      -> (NodeIndex, petgraph::graph::NodeIndex) {
         if nodes.len() == 1 {

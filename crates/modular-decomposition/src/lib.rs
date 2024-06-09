@@ -69,13 +69,15 @@ mod tests;
 
 pub use fracture::modular_decomposition;
 pub use md_tree::MDTree;
-pub use md_tree::ModuleKind;
 pub use md_tree::ModuleIndex;
+pub use md_tree::ModuleKind;
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::md_tree::{MDTree, ModuleKind, NodeIndex};
+    use crate::md_tree::{MDTree, ModuleKind};
+    use petgraph::graph::NodeIndex;
+    use petgraph::visit::NodeIndexable;
 
     #[derive(Default, Debug)]
     struct ModuleKindCounts {
@@ -91,7 +93,7 @@ mod test {
         }
     }
 
-    fn count_module_kinds(md: &MDTree) -> ModuleKindCounts {
+    fn count_module_kinds(md: &MDTree<NodeIndex>) -> ModuleKindCounts {
         let mut counts = ModuleKindCounts::default();
         for kind in md.module_kinds() {
             match kind {
@@ -117,7 +119,7 @@ mod test {
         let md = modular_decomposition(&graph).unwrap();
         assert_eq!(md.node_count(), 1);
         assert_eq!(count_module_kinds(&md), [0, 0, 0, 1]);
-        assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Node(NodeIndex::new(0))));
+        assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Node(graph.from_index(0))));
     }
 
     #[test]
