@@ -23,7 +23,7 @@ pub enum ModuleKind<NodeId: Copy + PartialEq> {
     Series,
     /// A parallel module. Its quotient graph is an empty graph.
     Parallel,
-    /// A trivial module with a single vertex. This is leaf node in the [MDTree].
+    /// A trivial module with a single node. This is leaf node in the [MDTree].
     Node(NodeId),
 }
 
@@ -46,7 +46,11 @@ impl<NodeId: Debug + Copy + PartialEq> Debug for ModuleKind<NodeId> {
     }
 }
 
-/// A modular decomposition tree. The tree contains at least one node.
+/// A modular decomposition tree.
+///
+/// The tree is non-empty and rooted.
+/// A module is a leaf if and only if it is of type [ModuleKind::Node(_)].
+/// The nodes at the leaves are the nodes of the original graph.
 #[derive(Clone, Debug)]
 pub struct MDTree<NodeId: Copy + PartialEq> {
     tree: DiGraph<ModuleKind<NodeId>, ()>,
@@ -95,12 +99,14 @@ impl<NodeId: Copy + PartialEq> MDTree<NodeId> {
     }
 
     /// Return the number of nodes in the modular decomposition tree.
+    ///
+    /// This is the number of strong modules of the original graph.
     #[inline(always)]
     pub fn node_count(&self) -> usize {
         self.tree.node_count()
     }
 
-    /// Return the root node index.
+    /// Return the root module index.
     #[inline(always)]
     pub fn root(&self) -> ModuleIndex {
         self.root
@@ -113,12 +119,12 @@ impl<NodeId: Copy + PartialEq> MDTree<NodeId> {
         self.tree.node_weight(module.0)
     }
 
-    /// Return an iterator yielding references to [ModuleKind]s for all nodes.
+    /// Return an iterator yielding references to [ModuleKind]s for all modules.
     pub fn module_kinds(&self) -> impl Iterator<Item = &ModuleKind<NodeId>> {
         self.tree.node_weights()
     }
 
-    /// Return an iterator for the children of a node.
+    /// Return an iterator for the children of a module.
     pub fn children(&self, module: ModuleIndex) -> impl Iterator<Item = ModuleIndex> + '_ {
         self.tree.neighbors_directed(module.0, Outgoing).map(ModuleIndex)
     }
