@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Display, Formatter};
+use std::iter::from_fn;
 
 use petgraph::graph::DiGraph;
 use petgraph::{Incoming, Outgoing};
@@ -122,6 +123,25 @@ impl<NodeId: Copy + PartialEq> MDTree<NodeId> {
         self.tree.neighbors_directed(module.0, Outgoing).map(ModuleIndex)
     }
 
+    /// Return the nodes of a module.
+    ///
+    /// The nodes represent nodes of the original graph and not modules of the [MDTree].
+    /// These are the leaves of the subtree rooted at `module` in the [MDTree].
+    pub fn nodes(&self, module: ModuleIndex) -> impl Iterator<Item = NodeId> + '_ {
+        let mut stack = vec![module.0];
+        from_fn(move || {
+            while let Some(next) = stack.pop() {
+                if let Some(ModuleKind::Node(node)) = self.tree.node_weight(next) {
+                    return Some(*node);
+                } else {
+                    let children = self.tree.neighbors_directed(next, Outgoing);
+                    stack.extend(children);
+                }
+            }
+            None
+        })
+    }
+
     /// Convert to [DiGraph].
     ///
     /// This allows the use of [petgraph] algorithms. Use [ModuleIndex::index] and
@@ -180,11 +200,56 @@ impl std::error::Error for NullGraphError {}
 #[cfg(test)]
 mod test {
     use petgraph::graph::{DiGraph, NodeIndex};
+    use petgraph::visit::IntoNodeIdentifiers;
     use petgraph::Outgoing;
 
     use crate::md_tree::NullGraphError;
-    use crate::tests::complete_graph;
+    use crate::tests::{complete_graph, pace2023_exact_024};
     use crate::{modular_decomposition, MDTree, ModuleIndex, ModuleKind};
+
+    #[test]
+    fn nodes() {
+        let graph = pace2023_exact_024();
+        let md = modular_decomposition(&graph).unwrap();
+        let mut module_nodes: Vec<(ModuleKind<_>, Vec<_>)> = (0..md.node_count())
+            .map(ModuleIndex::new)
+            .map(|module| (*md.module_kind(module).unwrap(), md.nodes(module).map(|node| node.index()).collect()))
+            .collect();
+        module_nodes.iter_mut().for_each(|(_, nodes)| nodes.sort());
+        module_nodes.sort();
+
+        for (kind, nodes) in &module_nodes {
+            if nodes.len() == 1 {
+                assert_eq!(*kind, ModuleKind::Node(NodeIndex::new(nodes[0])));
+            }
+            if nodes.len() == graph.node_count() {
+                assert_eq!(*nodes, graph.node_identifiers().map(|node| node.index()).collect::<Vec<_>>());
+            }
+        }
+
+        module_nodes.retain(|(_, nodes)| nodes.len() > 1);
+
+        let expected = [
+            (
+                ModuleKind::Prime,
+                vec![
+                    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 21, 22, 23, 26, 27, 28, 29, 30, 31,
+                    32, 33, 34, 35, 36, 37, 38, 39,
+                ],
+            ),
+            (ModuleKind::Series, vec![17, 18, 19]),
+            (ModuleKind::Series, vec![24, 25]),
+            (
+                ModuleKind::Parallel,
+                vec![
+                    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                    27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+                ],
+            ),
+            (ModuleKind::Parallel, vec![20, 30]),
+        ];
+        assert_eq!(module_nodes, expected);
+    }
 
     #[test]
     fn mdtree_and_digraph_are_equivalent() {
