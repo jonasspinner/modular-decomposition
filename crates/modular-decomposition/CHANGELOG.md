@@ -8,12 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
++ `MDTree::strong_module_count()` to replace `MDTree::node_count()`
 + Tests for `make_index` macro
 + `MDTree::nodes(module)` function
 
 ### Changed
 
 + Docs
+
+### Removed
+
++ `MDTree::node_count()` is replaced by `MDTree::strong_module_count()`
 
 ### Fixed
 

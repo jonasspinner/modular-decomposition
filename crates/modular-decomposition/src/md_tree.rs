@@ -49,8 +49,13 @@ impl<NodeId: Debug + Copy + PartialEq> Debug for ModuleKind<NodeId> {
 /// A modular decomposition tree.
 ///
 /// The tree is non-empty and rooted.
-/// A module is a leaf if and only if it is of type [ModuleKind::Node(_)].
-/// The nodes at the leaves are the nodes of the original graph.
+///
+/// A node in the tree is a strong module of the original graph.
+/// The modules have a type: `Prime`, `Series`, or `Parallel` for inner nodes and `Node(_)` for leaf nodes.
+///
+/// The nodes at the leaves are exactly the nodes of the original graph.
+///
+/// The leaves of a subtree rooted at a module are the set of nodes of the original graph that are a strong module. They can be obtained by [MDTree::nodes].
 #[derive(Clone, Debug)]
 pub struct MDTree<NodeId: Copy + PartialEq> {
     tree: DiGraph<ModuleKind<NodeId>, ()>,
@@ -98,11 +103,11 @@ impl<NodeId: Copy + PartialEq> MDTree<NodeId> {
         Ok(Self { tree, root })
     }
 
-    /// Return the number of nodes in the modular decomposition tree.
+    /// Return the number of strong modules in the modular decomposition tree.
     ///
-    /// This is the number of strong modules of the original graph.
+    /// These are all the nodes of the tree.
     #[inline(always)]
-    pub fn node_count(&self) -> usize {
+    pub fn strong_module_count(&self) -> usize {
         self.tree.node_count()
     }
 
@@ -217,7 +222,7 @@ mod test {
     fn nodes() {
         let graph = pace2023_exact_024();
         let md = modular_decomposition(&graph).unwrap();
-        let mut module_nodes: Vec<(ModuleKind<_>, Vec<_>)> = (0..md.node_count())
+        let mut module_nodes: Vec<(ModuleKind<_>, Vec<_>)> = (0..md.strong_module_count())
             .map(ModuleIndex::new)
             .map(|module| (*md.module_kind(module).unwrap(), md.nodes(module).map(|node| node.index()).collect()))
             .collect();

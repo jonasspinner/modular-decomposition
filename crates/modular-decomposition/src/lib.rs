@@ -117,7 +117,7 @@ mod test {
     fn empty_1() {
         let graph = tests::empty_graph(1);
         let md = modular_decomposition(&graph).unwrap();
-        assert_eq!(md.node_count(), 1);
+        assert_eq!(md.strong_module_count(), 1);
         assert_eq!(count_module_kinds(&md), [0, 0, 0, 1]);
         assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Node(graph.from_index(0))));
     }
@@ -126,7 +126,7 @@ mod test {
     fn empty_2() {
         let graph = tests::empty_graph(2);
         let md = modular_decomposition(&graph).unwrap();
-        assert_eq!(md.node_count(), 3);
+        assert_eq!(md.strong_module_count(), 3);
         assert_eq!(count_module_kinds(&md), [0, 0, 1, 2]);
         assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Parallel));
         assert_eq!(md.children(md.root()).count(), 2);
@@ -136,7 +136,7 @@ mod test {
     fn complete_2() {
         let graph = tests::complete_graph(2);
         let md = modular_decomposition(&graph).unwrap();
-        assert_eq!(md.node_count(), 3);
+        assert_eq!(md.strong_module_count(), 3);
         assert_eq!(count_module_kinds(&md), [0, 1, 0, 2]);
         assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Series));
         assert_eq!(md.children(md.root()).count(), 2);
@@ -164,7 +164,7 @@ mod test {
     fn path_4() {
         let graph = tests::path_graph(4);
         let md = modular_decomposition(&graph).unwrap();
-        assert_eq!(md.node_count(), 5);
+        assert_eq!(md.strong_module_count(), 5);
         assert_eq!(count_module_kinds(&md), [1, 0, 0, 4]);
         assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Prime));
         assert_eq!(md.children(md.root()).count(), 4);
