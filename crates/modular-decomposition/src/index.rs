@@ -67,3 +67,21 @@ macro_rules! make_index {
 }
 
 pub(crate) use make_index;
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn make_index() {
+        make_index!(TestIndex);
+
+        let idx = TestIndex::new(42);
+
+        assert_eq!(idx.index(), 42);
+        assert_eq!(TestIndex::end().index(), u32::MAX as usize);
+        assert_eq!(TestIndex::default(), TestIndex::end());
+        assert_eq!(TestIndex::from(42_u32), idx);
+        assert_eq!(TestIndex::from(42_usize), idx);
+        assert_eq!(usize::from(idx), 42_usize);
+        assert_eq!(format!("{:?}", idx), "TestIndex(42)".to_string());
+    }
+}
