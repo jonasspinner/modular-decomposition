@@ -92,7 +92,23 @@ mod tests {
     use std::collections::VecDeque;
     use std::num::Wrapping;
 
-    use crate::deque::Deque;
+    use crate::deque::{Deque, DequeIndex};
+
+    #[test]
+    fn index() {
+        let mut d = Deque::with_capacity(0);
+        for i in [2, 3, 5, 7] {
+            d.push_back(i);
+        }
+        assert_eq!(d.pop_front(), Some(2));
+        assert_eq!(d[DequeIndex::new(1)], 3);
+        assert_eq!(d[DequeIndex::new(2)], 5);
+        assert_eq!(d[DequeIndex::new(3)], 7);
+        let d = d;
+        assert_eq!(d[DequeIndex::new(1)], 3);
+        assert_eq!(d[DequeIndex::new(2)], 5);
+        assert_eq!(d[DequeIndex::new(3)], 7);
+    }
 
     #[test]
     fn push_back_copy_within() {

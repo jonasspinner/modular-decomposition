@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
++ Tests for `Deque`
 + `MDTree::strong_module_count()` to replace `MDTree::node_count()`
 + Tests for `make_index` macro
 + `MDTree::nodes(module)` function
@@ -22,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-+ Deque push_back behavior after multiple grow/shrink cycles
++ `Deque` push_back behavior after multiple grow/shrink cycles
 
 ## [0.2.0] - 2024-06-10
 
