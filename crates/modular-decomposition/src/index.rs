@@ -83,5 +83,6 @@ mod test {
         assert_eq!(TestIndex::from(42_usize), idx);
         assert_eq!(usize::from(idx), 42_usize);
         assert_eq!(format!("{:?}", idx), "TestIndex(42)".to_string());
+        assert_eq!(format!("{}", idx), "42".to_string());
     }
 }
