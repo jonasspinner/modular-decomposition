@@ -41,6 +41,54 @@ let md = modular_decomposition(&graph)?;
 // a graph is a cograph exactly if none of its modules is prime
 let is_cograph = md.module_kinds().all(|kind| *kind != ModuleKind::Prime);
 assert!(is_cograph);
+
+// we can also use the method `is_cograph`
+assert!(md.is_cograph());
+```
+
+Iterating over twins, true twins or false twins.
+
+```rust
+use petgraph::graph::{NodeIndex, UnGraph};
+use modular_decomposition::modular_decomposition;
+
+let normalize = |sets: &[Vec<NodeIndex>]| -> Vec<Vec<usize>> {
+    let mut sets: Vec<Vec<usize>> = sets.iter().map(|nodes| nodes.iter().map(|node| node.index()).collect()).collect();
+    sets.iter_mut().for_each(|nodes| nodes.sort());
+    sets.sort();
+    sets
+};
+
+// a K_2 + 2 K_1
+let graph = UnGraph::<(), ()>::from_edges([(2, 3)]);
+let md = modular_decomposition(&graph)?;
+
+let twins: Vec<_> = md.twins().collect();
+assert_eq!(normalize(&twins), [[0, 1], [2, 3]]);
+
+let true_twins: Vec<_> = md.true_twins().collect();
+assert_eq!(normalize(&true_twins), [[2, 3]]);
+
+let false_twins: Vec<_> = md.false_twins().collect();
+assert_eq!(normalize(&false_twins), [[0, 1]]);
+```
+
+Walking the modular decomposition tree in [DFS order](https://en.wikipedia.org/wiki/Depth-first_search).
+
+```rust
+use petgraph::graph::{NodeIndex, UnGraph};
+use modular_decomposition::modular_decomposition;
+
+// some graph
+let graph = UnGraph::<(), ()>::from_edges([(2, 3), (3, 4)]);
+let md = modular_decomposition(&graph)?;
+
+let mut stack = vec![md.root()];
+while let Some(module) = stack.pop() {
+    stack.extend(md.children(module));
+    // do something with module
+    // ...
+}
 ```
 
 ## Generics
