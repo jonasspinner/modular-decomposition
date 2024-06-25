@@ -13,6 +13,11 @@ use tracing::{info, instrument};
 /// # Errors
 ///
 /// Returns a `NullGraphError` if the input graph does not contain any nodes or edges.
+///
+/// # References
+///
+/// + \[HPV99\] Michel Habib, Christophe Paul, and Laurent Viennot. “Partition Refinement Techniques: An Interesting Algorithmic Tool Kit”. <https://doi.org/10.1142/S0129054199000125>
+/// + \[CHM02\] Christian Capelle, Michel Habib, and Fabien Montgolfier. “Graph Decompositions and Factorizing Permutations”. <https://doi.org/10.46298/dmtcs.298>
 #[instrument(skip_all)]
 pub fn modular_decomposition<G>(graph: G) -> Result<MDTree<G::NodeId>, NullGraphError>
 where

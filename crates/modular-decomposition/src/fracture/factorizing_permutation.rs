@@ -24,6 +24,10 @@ use tracing::instrument;
 /// the set of nodes in it will never change in the rest of the algorithm. It
 /// will only be divided up into more and more parts, but the the nodes in it
 /// will not change.
+///
+/// # References
+///
+/// + \[HPV99\] Michel Habib, Christophe Paul, and Laurent Viennot. “Partition Refinement Techniques: An Interesting Algorithmic Tool Kit”. <https://doi.org/10.1142/S0129054199000125>
 #[instrument(skip_all)]
 pub(crate) fn factorizing_permutation<G>(graph: G) -> Permutation
 where

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
++ References and citation guideline
 + `MDTree::is_cograph()`, `MDTree::twins()`, `MDTree::true_twins()` and `MDTree::false_twins()`
 + Tests for `Deque`
 + `MDTree::strong_module_count()` to replace `MDTree::node_count()`

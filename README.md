@@ -3,7 +3,7 @@
 A library to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a
 simple, undirected graph.
 
-[![docs.rs](https://img.shields.io/docsrs/modular-decomposition?logo=rust)](https://docs.rs/modular-decomposition) [![Coverage Status](https://coveralls.io/repos/github/jonasspinner/modular-decomposition/badge.svg?branch=main)](https://coveralls.io/github/jonasspinner/modular-decomposition?branch=main) [![Crates.io](https://img.shields.io/crates/v/modular-decomposition.svg?logo=rust)](https://crates.io/crates/modular-decomposition) [![Crates.io](https://img.shields.io/crates/l/modular-decomposition.svg)](./LICENSE)
+[![docs.rs](https://img.shields.io/docsrs/modular-decomposition?logo=rust)](https://docs.rs/modular-decomposition) [![Coverage Status](https://coveralls.io/repos/github/jonasspinner/modular-decomposition/badge.svg?branch=main)](https://coveralls.io/github/jonasspinner/modular-decomposition?branch=main) [![Crates.io](https://img.shields.io/crates/v/modular-decomposition.svg?logo=rust)](https://crates.io/crates/modular-decomposition) [![Crates.io](https://img.shields.io/crates/l/modular-decomposition.svg)](./LICENSE) [![DOI](https://img.shields.io/badge/doi-10.5445%2FIR%2F1000170363-blue?logo=doi)](https://doi.org/10.5445/IR/1000170363)
 
 This project implements several algorithms for computing the modular decomposition and evaluates them. It is structures as follows.
 
@@ -45,11 +45,28 @@ The time for multiple runs is averaged for each instance and algorithm. The time
 The `fracture` algorithm performs best for most instances.
 The evaluation code can be found in `crates/evaluation`.
 
+## Citing
+
+> Jonas Spinner. "A Practical Evaluation of Modular Decomposition Algorithms". https://doi.org/10.5445/IR/1000170363
+
+```Bibtex
+@mastersthesis{Spinner2024,
+    doi          = {10.5445/IR/1000170363},
+    url          = {https://doi.org/10.5445/IR/1000170363},
+    title        = {A Practical Evaluation of Modular Decomposition Algorithms},
+    author       = {Spinner, Jonas},
+    year         = {2024},
+    publisher    = {{Karlsruher Institut für Technologie (KIT)}},
+    school       = {Karlsruher Institut für Technologie (KIT)},
+    language     = {english}
+}
+```
+
 ## References
 
-+ [HPV99] Michel Habib, Christophe Paul, and Laurent Viennot. “Partition Refinement Techniques: An Interesting Algorithmic Tool Kit”. https://doi.org/10.1142/S0129054199000125.
++ [HPV99] Michel Habib, Christophe Paul, and Laurent Viennot. “Partition Refinement Techniques: An Interesting Algorithmic Tool Kit”. https://doi.org/10.1142/S0129054199000125
 + [CHM02] Christian Capelle, Michel Habib, and Fabien Montgolfier. “Graph Decompositions and Factorizing Permutations”. https://doi.org/10.46298/dmtcs.298
 + [MS00] Ross M. Mcconnell and Jeremy P. Spinrad. “Ordered Vertex Partitioning”. https://doi.org/10.46298/dmtcs.274
-+ [TCHP08] Marc Tedder, Derek Corneil, Michel Habib, and Christophe Paul. “Simpler Linear-Time Modular Decomposition Via Recursive Factorizing Permutations”. https://doi.org/10.1007/978-3-540-70575-8_52.
++ [TCHP08] Marc Tedder, Derek Corneil, Michel Habib, and Christophe Paul. “Simpler Linear-Time Modular Decomposition Via Recursive Factorizing Permutations”. https://doi.org/10.1007/978-3-540-70575-8_52
 + [Miz23] https://github.com/mogproject/modular-decomposition
 + [Kar19] https://github.com/StefanKarpinski/GraphModularDecomposition.jl

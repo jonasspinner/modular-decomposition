@@ -3,7 +3,7 @@
 A library to compute the [modular decomposition](https://en.wikipedia.org/wiki/Modular_decomposition) of a
 simple, undirected graph.
 
-[![docs.rs](https://img.shields.io/docsrs/modular-decomposition?logo=rust)](https://docs.rs/modular-decomposition) [![Coverage Status](https://coveralls.io/repos/github/jonasspinner/modular-decomposition/badge.svg?branch=main)](https://coveralls.io/github/jonasspinner/modular-decomposition?branch=main) [![Crates.io](https://img.shields.io/crates/v/modular-decomposition.svg?logo=rust)](https://crates.io/crates/modular-decomposition) [![Crates.io](https://img.shields.io/crates/l/modular-decomposition.svg)](./LICENSE)
+[![docs.rs](https://img.shields.io/docsrs/modular-decomposition?logo=rust)](https://docs.rs/modular-decomposition) [![Coverage Status](https://coveralls.io/repos/github/jonasspinner/modular-decomposition/badge.svg?branch=main)](https://coveralls.io/github/jonasspinner/modular-decomposition?branch=main) [![Crates.io](https://img.shields.io/crates/v/modular-decomposition.svg?logo=rust)](https://crates.io/crates/modular-decomposition) [![Crates.io](https://img.shields.io/crates/l/modular-decomposition.svg)](./LICENSE) [![DOI](https://img.shields.io/badge/doi-10.5445%2FIR%2F1000170363-blue?logo=doi)](https://doi.org/10.5445/IR/1000170363)
 
 A node set *M* is a *module* if every node has the same neighborhood outside *M*. The set of all nodes *V* and the sets
 with a single node *{u}* are
@@ -55,3 +55,20 @@ traits `NodeCompactIndexable`, `IntoNeighbors`, and `GraphProp<EdgeType = Undire
 As part of a thesis, we evaluated four implementations of modular decomposition algorithms.
 The `fracture` algorithm performs best and is provided in this library. For more information see
 the [repository](https://github.com/jonasspinner/modular-decomposition/).
+
+## Citing
+
+> Jonas Spinner. "A Practical Evaluation of Modular Decomposition Algorithms". https://doi.org/10.5445/IR/1000170363
+
+```Bibtex
+@mastersthesis{Spinner2024,
+    doi          = {10.5445/IR/1000170363},
+    url          = {https://doi.org/10.5445/IR/1000170363},
+    title        = {A Practical Evaluation of Modular Decomposition Algorithms},
+    author       = {Spinner, Jonas},
+    year         = {2024},
+    publisher    = {{Karlsruher Institut für Technologie (KIT)}},
+    school       = {Karlsruher Institut für Technologie (KIT)},
+    language     = {english}
+}
+```
