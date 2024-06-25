@@ -1,3 +1,5 @@
+mod functions;
+
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::from_fn;
 
