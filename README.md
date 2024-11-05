@@ -38,7 +38,7 @@ assert_eq!(md.module_kind(md.root()), Some(&ModuleKind::Prime));
 
 ## Evaluation
 
-![](/evaluation.png)
+![](https://raw.githubusercontent.com/jonasspinner/modular-decomposition/refs/heads/main/evaluation.png)
 
 This figure shows the algorithm performance for some datasets.
 The time for multiple runs is averaged for each instance and algorithm. The time for each algorithm is divided by the best time and the distribution is plotted.
